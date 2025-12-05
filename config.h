@@ -1,0 +1,38 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
+// Hardware Configuration
+#define VOICES 6
+#define MENU_ENCODER_CLK 13
+#define MENU_ENCODER_DT 14
+#define MENU_ENCODER_SW 15
+
+// Audio Configuration
+#define AUDIO_MEMORY_BLOCKS 48
+#define FLANGE_DELAY_LENGTH (6*AUDIO_BLOCK_SAMPLES)
+
+// Parameter Configuration
+#define NUM_PARAMETERS 41
+#define NUM_VA_PARAMETERS 39
+#define NUM_JUNO_PARAMETERS 39
+
+// Display Configuration (choose one)
+// #define USE_LCD_DISPLAY
+#define USE_OLED_DISPLAY
+
+// Optional Features
+// #define ENABLE_DIN_MIDI
+// #define MINIMAL_BUILD
+
+// Engine Types
+typedef enum {
+  ENGINE_VA = 0,
+  ENGINE_JUNO = 1, 
+  ENGINE_DX7 = 2
+} EngineType;
+
+// Preset Configuration
+#define NUM_PRESETS 20
+#define NUM_JUNO_PRESETS 7
+
+#endif // CONFIG_H
