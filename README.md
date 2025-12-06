@@ -201,6 +201,70 @@ Engine Select → [Virtual Analog | Juno-60 | DX7 FM]
     └── Macro Knobs
 ```
 
+## Adding DX7 SysEx Banks
+
+**Ultra-simple 3-step process** - Add unlimited DX7 banks to your synth:
+
+### Automatic Method (Recommended)
+1. **Drop .syx files** into the `sysex/` directory  
+2. **Run**: `cd sysex && python3 sysex2c.py`
+3. **Done!** All banks now available in Presets → Banks menu
+
+**That's it!** The script automatically:
+- ✅ Finds all .syx files in directory  
+- ✅ Converts to correct format with bank names
+- ✅ Updates header file with all banks
+- ✅ No manual code changes needed
+
+### Where to Get DX7 Banks
+- **Classic**: ROM1A.syx, ROM1B.syx (original factory sounds)
+- **Community**: [dexed GitHub](https://github.com/asb2m10/dexed)  
+- **Online**: Search "DX7 sysex download"
+
+### Method 2: Cherry-Pick Individual Patches
+Use `extract_dx7_patches.py` to select specific patches from a bank:
+
+1. **Edit patch selection**: Modify the `popular_patches` list (line 141)
+2. **Run extractor**: `python3 extract_dx7_patches.py`  
+3. **Copy output**: Replace `dx7_selected_patches` array in your sketch
+
+### What sysex2c.py Does
+- ✅ **Validates sysex format**: Checks headers, checksums, and file structure
+- ✅ **Unpacks to 156-byte format**: Converts from DX7's packed format to synth-ready format
+- ✅ **Processes multiple banks**: Create one large 3D array with all your banks
+- ✅ **Extracts patch names**: Shows all patch names with comments
+- ✅ **Ready-to-use output**: Generates complete C header file
+
+### Example Workflow
+```bash
+# 1. Download some DX7 banks
+wget http://example.com/ROM1A.syx
+wget http://example.com/Lately_Bass.syx
+
+# 2. Convert to C array
+python3 sysex2c.py --decode ROM1A.syx Lately_Bass.syx > my_dx7_banks.h
+
+# 3. Output will be:
+# uint8_t progmem_bank[2][32][156] PROGMEM = {
+#   { // ROM1A.syx
+#     { // 1: BRASS 1
+#       99, 99, 99, 99, 0, 0, ...
+#     },
+#     ...
+#   },
+#   { // Lately_Bass.syx  
+#     ...
+#   }
+# };
+```
+
+### Popular DX7 Banks to Try
+- **Factory ROM1A/ROM1B**: Classic sounds (E.PIANO 1, BRASS 1, etc.)
+- **Brian Eno**: Ambient textures
+- **Lately Bass**: Classic bass sounds  
+- **TX7 Collections**: Thousands of user patches
+- **Film/Game Soundtracks**: Specific collections
+
 ## Development Status
 
 **Current Version:** 1.0 Alpha

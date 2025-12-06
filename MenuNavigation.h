@@ -84,7 +84,9 @@ enum MenuState {
   REVERB_HIDAMP,
   REVERB_LODAMP,
   REVERB_LOWPASS,
-  REVERB_DIFFUSION
+  REVERB_DIFFUSION,
+  DX7_BANKS,     // DX7 bank selection menu
+  DX7_PATCHES    // DX7 patch selection within a bank
 };
 
 // EngineType now defined in config.h
@@ -148,6 +150,12 @@ extern bool chorusBypass;
 extern bool reverbBypass;
 extern float chorusRate;
 extern float chorusDepth;
+
+// DX7 bank/patch selection
+extern int currentDX7Bank;    // Currently selected bank (0-1)
+extern int dx7BankIndex;      // Bank browser index  
+extern int dx7PatchIndex;     // Patch browser index
+extern const char* dx7BankNames[];   // Bank names (size determined by sysex2c.py)
 
 // Hardware pin definitions now in config.h
 

@@ -1,5 +1,6 @@
 #include "config.h"
 #include "MenuNavigation.h"
+#include "dx7_rom1a_unpacked.h"  // For NUM_DX7_BANKS definition
 #include <Encoder.h>
 #include <Audio.h>
 
@@ -164,7 +165,7 @@ extern Voice voices[6];  // Matches VOICES = 6 from main file
 
 
 // External DX7 bank data
-extern unsigned char progmem_bank[1][32][156];
+extern unsigned char progmem_bank[][32][156];   // Size determined by sysex2c.py
 
 int getParameterIndex(MenuState state) {
   switch(state) {
@@ -822,6 +823,13 @@ void backMenuAction() {
     case REVERB_DIFFUSION:
       currentMenuState = EFFECTS;
       break;
+    case DX7_BANKS:
+      exitParentMenuLevel(); // Go back to parent level (presets)
+      break;
+    case DX7_PATCHES:
+      currentMenuState = DX7_BANKS; // Go back to bank selection
+      dx7PatchIndex = 0; // Reset patch index
+      break;
   }
 }
 
@@ -846,17 +854,7 @@ void handleEngineMenu(int direction) {
   updateDisplay();
 }
 
-void handleDX7PresetMenu(int direction) {
-  if (currentEngine != ENGINE_DX7) return;
-  
-  // Only browse, don't auto-load
-  if (direction > 0) {
-    dx7BrowseIndex = (dx7BrowseIndex + 1) % 33; // 32 presets + 1 "Back" option
-  } else {
-    dx7BrowseIndex = (dx7BrowseIndex + 32) % 33; // Handle wrap
-  }
-  updateDisplay();
-}
+// DX7 preset menu removed - now using bank/patch system
 
 void enterParentMenuLevel() {
   inMenu = true;
@@ -913,8 +911,27 @@ void handleEncoder() {
             updateDisplay();
           }
         } else if (currentEngine == ENGINE_DX7) {
-          // DX7 preset navigation
-          handleDX7PresetMenu(direction);
+          // DX7 bank/patch navigation
+          if (currentMenuState == DX7_BANKS) {
+            // Navigate banks (0 to NUM_DX7_BANKS-1, Back)
+            if (direction > 0) {
+              dx7BankIndex++;
+              if (dx7BankIndex > NUM_DX7_BANKS) dx7BankIndex = 0; // 0 to NUM_DX7_BANKS-1, then Back
+            } else {
+              dx7BankIndex--;
+              if (dx7BankIndex < 0) dx7BankIndex = NUM_DX7_BANKS;
+            }
+          } else if (currentMenuState == DX7_PATCHES) {
+            // Navigate patches (0-31, Back)
+            if (direction > 0) {
+              dx7PatchIndex++;
+              if (dx7PatchIndex > 32) dx7PatchIndex = 0; // 0-31=patches, 32=Back
+            } else {
+              dx7PatchIndex--;
+              if (dx7PatchIndex < 0) dx7PatchIndex = 32;
+            }
+          }
+          updateDisplay();
         }
       } else if (currentParentMenu == PARENT_PARAMETERS) {
         // In parameter menus - use existing system for VA, simple for DX7
@@ -1032,8 +1049,9 @@ void handleEncoder() {
           inPresetBrowse = true;
           junoPresetBrowseIndex = 0;
         } else if (currentEngine == ENGINE_DX7) {
-          // Enter DX7 preset browse mode
-          dx7BrowseIndex = 0;
+          // Enter DX7 bank selection mode
+          currentMenuState = DX7_BANKS;
+          dx7BankIndex = 0;
         }
       } else if (currentParentMenu == PARENT_PARAMETERS) {
         // Enter parameters submenu - stay in parameters list, don't jump to OSC_1
@@ -1067,10 +1085,27 @@ void handleEncoder() {
           }
           updateDisplay();
         } else if (currentEngine == ENGINE_DX7) {
-          if (dx7BrowseIndex == 32) {
-            enterParentMenuLevel(); // Back to parent (32 = "Back" option)
-          } else {
-            loadDX7Preset(dx7BrowseIndex); // Load selected preset and stay in presets
+          // Handle DX7 bank/patch navigation
+          if (currentMenuState == DX7_BANKS) {
+            // In bank selection
+            if (dx7BankIndex == NUM_DX7_BANKS) {
+              // Back button - go back to parent menu (Presets)
+              enterParentMenuLevel();
+            } else {
+              // Select bank and go to patches
+              currentDX7Bank = dx7BankIndex;
+              currentMenuState = DX7_PATCHES;
+              dx7PatchIndex = 0;
+            }
+          } else if (currentMenuState == DX7_PATCHES) {
+            // In patch selection
+            if (dx7PatchIndex == 32) {
+              // Back to banks
+              currentMenuState = DX7_BANKS;
+            } else {
+              // Load selected patch
+              loadDX7Preset(dx7PatchIndex);
+            }
           }
           updateDisplay();
         }
@@ -1270,18 +1305,30 @@ void updateDisplay() {
             junoPresetBrowseIndex = 0;
           }
         } else if (currentEngine == ENGINE_DX7) {
-          // DX7 preset browsing (click to load)
-          line1 = "DX7 Presets";
-          if (dx7BrowseIndex == 32) {
-            line2 = "< Back";
-          } else {
-            // Extract and display patch name being browsed
-            char voice_name[11];
-            memset(voice_name, 0, 11);
-            memcpy(voice_name, &progmem_bank[0][dx7BrowseIndex][144], 10);
-            line2 = String(dx7BrowseIndex + 1) + ". " + String(voice_name);
+          // DX7 bank/patch browsing
+          if (currentMenuState == DX7_BANKS) {
+            // Bank selection menu
+            line1 = "DX7 Banks";
+            if (dx7BankIndex < NUM_DX7_BANKS) {
+              line2 = String(dx7BankIndex + 1) + ". " + String(dx7BankNames[dx7BankIndex]);
+            } else {
+              line2 = "< Back";
+            }
+            displayText(line1, line2);
+          } else if (currentMenuState == DX7_PATCHES) {
+            // Patch selection menu
+            line1 = String(dx7BankNames[currentDX7Bank]) + " Patches";
+            if (dx7PatchIndex == 32) {
+              line2 = "< Back";
+            } else {
+              // Extract and display patch name being browsed
+              char voice_name[11];
+              memset(voice_name, 0, 11);
+              memcpy(voice_name, &progmem_bank[currentDX7Bank][dx7PatchIndex][144], 10);
+              line2 = String(dx7PatchIndex + 1) + ". " + String(voice_name);
+            }
+            displayText(line1, line2);
           }
-          displayText(line1, line2);
         }
       } else if (currentParentMenu == PARENT_PARAMETERS) {
         if (currentEngine == ENGINE_VA) {
