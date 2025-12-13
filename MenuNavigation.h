@@ -86,7 +86,25 @@ enum MenuState {
   REVERB_LOWPASS,
   REVERB_DIFFUSION,
   DX7_BANKS,     // DX7 bank selection menu
-  DX7_PATCHES    // DX7 patch selection within a bank
+  DX7_PATCHES,   // DX7 patch selection within a bank
+  // Braids parameter sub-menus
+  BRAIDS_SHAPE,
+  BRAIDS_TIMBRE,
+  BRAIDS_COLOR,
+  BRAIDS_COARSE,
+  BRAIDS_AMP_ATTACK,
+  BRAIDS_AMP_DECAY,
+  BRAIDS_AMP_SUSTAIN,
+  BRAIDS_AMP_RELEASE,
+  BRAIDS_FILTER_MODE,
+  BRAIDS_FILTER_CUTOFF,
+  BRAIDS_FILTER_RESONANCE,
+  BRAIDS_FILTER_STRENGTH,
+  BRAIDS_FILTER_ATTACK,
+  BRAIDS_FILTER_DECAY,
+  BRAIDS_FILTER_SUSTAIN,
+  BRAIDS_FILTER_RELEASE,
+  BRAIDS_VOLUME
 };
 
 // EngineType now defined in config.h
@@ -128,6 +146,7 @@ extern EngineType currentEngine;
 extern bool inPresetBrowse;
 extern int presetBrowseIndex;
 extern int junoPresetBrowseIndex;
+extern int braidsPresetBrowseIndex;
 extern int dx7BrowseIndex;
 extern int engineBrowseIndex;
 
@@ -169,6 +188,7 @@ extern void switchEngine(EngineType newEngine);
 extern void loadPreset(int presetIndex);
 extern void loadJunoPreset(int presetIndex);
 extern void loadDX7Preset(int presetIndex);
+extern void loadBraidsPreset(int presetIndex);
 
 // Preset constants now defined in config.h
 
@@ -185,5 +205,27 @@ struct JunoPreset {
 
 extern const MiniTeensyPreset presets[];
 extern const JunoPreset junoPresets[];
+
+// Braids preset structure (shared between .ino and MenuNavigation.cpp)
+struct BraidsPreset {
+  const char* name;
+  uint8_t shape;     // Oscillator shape (0-47)
+  uint8_t timbre;    // Timbre parameter (0-127)
+  uint8_t color;     // Color parameter (0-127)
+  uint8_t attack;    // Envelope attack (0-127)
+  uint8_t decay;     // Envelope decay (0-127)
+  uint8_t sustain;   // Envelope sustain (0-127)
+  uint8_t release;   // Envelope release (0-127)
+  uint16_t filterFreq; // Filter frequency (50-8000)
+  uint8_t filterRes; // Filter resonance (0-127)
+};
+
+extern const BraidsPreset braidsPresets[];
+
+// Braids parameter system
+extern float braidsParameters[];
+extern const char* braidsControlNames[];
+extern const char* braidsAlgorithmNames[];
+extern void updateBraidsParameter(int paramIndex, float value);
 
 #endif // MENU_NAVIGATION_H

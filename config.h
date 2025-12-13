@@ -15,6 +15,7 @@
 #define NUM_PARAMETERS 41
 #define NUM_VA_PARAMETERS 39
 #define NUM_JUNO_PARAMETERS 39
+#define NUM_BRAIDS_PARAMETERS 17  // Braids-specific parameters (added filter ADSR + volume)
 
 // Display Configuration (choose one)
 // #define USE_LCD_DISPLAY
@@ -27,12 +28,14 @@
 // Engine Types
 typedef enum {
   ENGINE_VA = 0,
-  ENGINE_JUNO = 1, 
-  ENGINE_DX7 = 2
+  ENGINE_DX7 = 1,
+  ENGINE_JUNO = 2, 
+  ENGINE_BRAIDS = 3
 } EngineType;
 
 // Preset Configuration
 #define NUM_PRESETS 20
 #define NUM_JUNO_PRESETS 7
+#define NUM_BRAIDS_PRESETS 8
 
 #endif // CONFIG_H

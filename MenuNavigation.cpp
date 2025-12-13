@@ -43,6 +43,13 @@ void displayText(String line1, String line2) {
 }
 
 void updateParameterFromMenu(int paramIndex, float val) {
+  // Handle Braids parameters separately
+  if (paramIndex >= 100 && paramIndex <= 116) {
+    int braidsParamIndex = paramIndex - 100; // Convert to 0-16 range
+    updateBraidsParameter(braidsParamIndex, val);
+    return;
+  }
+  
   // Apply Juno-60 parameter mapping first if needed
   if (currentEngine == ENGINE_JUNO) {
     applyJunoParameterMapping();
@@ -209,6 +216,24 @@ int getParameterIndex(MenuState state) {
     case REVERB_LODAMP: return 37;
     case REVERB_LOWPASS: return 38;
     case REVERB_DIFFUSION: return 39;
+    // Braids parameters - use custom parameter system
+    case BRAIDS_SHAPE: return 100;  // Custom indices for Braids
+    case BRAIDS_TIMBRE: return 101;
+    case BRAIDS_COLOR: return 102;
+    case BRAIDS_COARSE: return 103;
+    case BRAIDS_AMP_ATTACK: return 104;
+    case BRAIDS_AMP_DECAY: return 105;
+    case BRAIDS_AMP_SUSTAIN: return 106;
+    case BRAIDS_AMP_RELEASE: return 107;
+    case BRAIDS_FILTER_MODE: return 108;
+    case BRAIDS_FILTER_CUTOFF: return 109;
+    case BRAIDS_FILTER_RESONANCE: return 110;
+    case BRAIDS_FILTER_STRENGTH: return 111;
+    case BRAIDS_FILTER_ATTACK: return 112;
+    case BRAIDS_FILTER_DECAY: return 113;
+    case BRAIDS_FILTER_SUSTAIN: return 114;
+    case BRAIDS_FILTER_RELEASE: return 115;
+    case BRAIDS_VOLUME: return 116;
     default: return -1;
   }
 }
@@ -391,18 +416,51 @@ int getMiniTeensyWaveform(float val, int osc) {
 void navigateMenuForward() {
   switch(currentMenuState) {
     case PARAMETERS:
-      if (menuIndex == 0) currentMenuState = OSC_1;
-      else if (menuIndex == 1) currentMenuState = OSC_2;
-      else if (menuIndex == 2) currentMenuState = OSC_3;
-      else if (menuIndex == 3) currentMenuState = NOISE;
-      else if (menuIndex == 4) currentMenuState = ENVELOPES;
-      else if (menuIndex == 5) currentMenuState = FILTER;
-      else if (menuIndex == 6) currentMenuState = LFO;
-      else if (menuIndex == 7) currentMenuState = VOICE_MODE;
-      else if (menuIndex == 8) {
-        // Back to parent menu
+      if (currentEngine == ENGINE_VA) {
+        // VA parameter navigation
+        if (menuIndex == 0) currentMenuState = OSC_1;
+        else if (menuIndex == 1) currentMenuState = OSC_2;
+        else if (menuIndex == 2) currentMenuState = OSC_3;
+        else if (menuIndex == 3) currentMenuState = NOISE;
+        else if (menuIndex == 4) currentMenuState = ENVELOPES;
+        else if (menuIndex == 5) currentMenuState = FILTER;
+        else if (menuIndex == 6) currentMenuState = LFO;
+        else if (menuIndex == 7) currentMenuState = VOICE_MODE;
+        else if (menuIndex == 8) {
+          // Back to parent menu
+          enterParentMenuLevel();
+          currentParentMenu = PARENT_PARAMETERS; // Ensure we're positioned on Parameters
+          return;
+        }
+      } else if (currentEngine == ENGINE_BRAIDS) {
+        // Braids parameter navigation
+        if (menuIndex == 0) currentMenuState = BRAIDS_SHAPE;
+        else if (menuIndex == 1) currentMenuState = BRAIDS_TIMBRE;
+        else if (menuIndex == 2) currentMenuState = BRAIDS_COLOR;
+        else if (menuIndex == 3) currentMenuState = BRAIDS_COARSE;
+        else if (menuIndex == 4) currentMenuState = BRAIDS_AMP_ATTACK;
+        else if (menuIndex == 5) currentMenuState = BRAIDS_AMP_DECAY;
+        else if (menuIndex == 6) currentMenuState = BRAIDS_AMP_SUSTAIN;
+        else if (menuIndex == 7) currentMenuState = BRAIDS_AMP_RELEASE;
+        else if (menuIndex == 8) currentMenuState = BRAIDS_FILTER_MODE;
+        else if (menuIndex == 9) currentMenuState = BRAIDS_FILTER_CUTOFF;
+        else if (menuIndex == 10) currentMenuState = BRAIDS_FILTER_RESONANCE;
+        else if (menuIndex == 11) currentMenuState = BRAIDS_FILTER_STRENGTH;
+        else if (menuIndex == 12) currentMenuState = BRAIDS_FILTER_ATTACK;
+        else if (menuIndex == 13) currentMenuState = BRAIDS_FILTER_DECAY;
+        else if (menuIndex == 14) currentMenuState = BRAIDS_FILTER_SUSTAIN;
+        else if (menuIndex == 15) currentMenuState = BRAIDS_FILTER_RELEASE;
+        else if (menuIndex == 16) currentMenuState = BRAIDS_VOLUME;
+        else if (menuIndex == 17) {
+          // Back to parent menu
+          enterParentMenuLevel();
+          currentParentMenu = PARENT_PARAMETERS; // Ensure we're positioned on Parameters
+          return;
+        }
+      } else {
+        // Default/other engines - just go back
         enterParentMenuLevel();
-        currentParentMenu = PARENT_PARAMETERS; // Ensure we're positioned on Parameters
+        currentParentMenu = PARENT_PARAMETERS;
         return;
       }
       menuIndex = 0; // Reset index for sub-menu
@@ -572,7 +630,13 @@ void incrementMenuIndex() {
       break;
     case PARAMETERS:
       menuIndex++;
-      if (menuIndex > 8) menuIndex = 0; // Parameters has 9 items (0-8) including Back
+      if (currentEngine == ENGINE_VA) {
+        if (menuIndex > 8) menuIndex = 0; // VA has 9 items (0-8) including Back
+      } else if (currentEngine == ENGINE_BRAIDS) {
+        if (menuIndex > 17) menuIndex = 0; // Braids has 18 items (0-17) including Back
+      } else {
+        if (menuIndex > 8) menuIndex = 0; // Default for other engines
+      }
       break;
     case EFFECTS:
       menuIndex++;
@@ -628,7 +692,13 @@ void decrementMenuIndex() {
       break;
     case PARAMETERS:
       menuIndex--;
-      if (menuIndex < 0) menuIndex = 8; // Wrap to Back button (0-8)
+      if (currentEngine == ENGINE_VA) {
+        if (menuIndex < 0) menuIndex = 8; // Wrap to Back button (0-8)
+      } else if (currentEngine == ENGINE_BRAIDS) {
+        if (menuIndex < 0) menuIndex = 17; // Wrap to Back button (0-17)
+      } else {
+        if (menuIndex < 0) menuIndex = 8; // Default for other engines
+      }
       break;
     case EFFECTS:
       menuIndex--;
@@ -830,6 +900,75 @@ void backMenuAction() {
       currentMenuState = DX7_BANKS; // Go back to bank selection
       dx7PatchIndex = 0; // Reset patch index
       break;
+    // Braids parameter cases
+    case BRAIDS_SHAPE:
+      currentMenuState = PARAMETERS;
+      menuIndex = 0; // Shape is at index 0
+      break;
+    case BRAIDS_TIMBRE:
+      currentMenuState = PARAMETERS;
+      menuIndex = 1; // Timbre is at index 1
+      break;
+    case BRAIDS_COLOR:
+      currentMenuState = PARAMETERS;
+      menuIndex = 2; // Color is at index 2
+      break;
+    case BRAIDS_COARSE:
+      currentMenuState = PARAMETERS;
+      menuIndex = 3; // Coarse is at index 3
+      break;
+    case BRAIDS_AMP_ATTACK:
+      currentMenuState = PARAMETERS;
+      menuIndex = 4; // Amp Attack is at index 4
+      break;
+    case BRAIDS_AMP_DECAY:
+      currentMenuState = PARAMETERS;
+      menuIndex = 5; // Amp Decay is at index 5
+      break;
+    case BRAIDS_AMP_SUSTAIN:
+      currentMenuState = PARAMETERS;
+      menuIndex = 6; // Amp Sustain is at index 6
+      break;
+    case BRAIDS_AMP_RELEASE:
+      currentMenuState = PARAMETERS;
+      menuIndex = 7; // Release is at index 7
+      break;
+    case BRAIDS_FILTER_MODE:
+      currentMenuState = PARAMETERS;
+      menuIndex = 8; // Filter Mode is at index 8
+      break;
+    case BRAIDS_FILTER_CUTOFF:
+      currentMenuState = PARAMETERS;
+      menuIndex = 9; // Filter Cutoff is at index 9
+      break;
+    case BRAIDS_FILTER_RESONANCE:
+      currentMenuState = PARAMETERS;
+      menuIndex = 10; // Filter Resonance is at index 10
+      break;
+    case BRAIDS_FILTER_STRENGTH:
+      currentMenuState = PARAMETERS;
+      menuIndex = 11; // Filter Strength is at index 11
+      break;
+    case BRAIDS_FILTER_ATTACK:
+      currentMenuState = PARAMETERS;
+      menuIndex = 12; // Filter Attack is at index 12
+      break;
+    case BRAIDS_FILTER_DECAY:
+      currentMenuState = PARAMETERS;
+      menuIndex = 13; // Filter Decay is at index 13
+      break;
+    case BRAIDS_FILTER_SUSTAIN:
+      currentMenuState = PARAMETERS;
+      menuIndex = 14; // Filter Sustain is at index 14
+      break;
+    case BRAIDS_FILTER_RELEASE:
+      currentMenuState = PARAMETERS;
+      menuIndex = 15; // Filter Release is at index 15
+      break;
+    case BRAIDS_VOLUME:
+      currentMenuState = PARAMETERS;
+      menuIndex = 16; // Volume is at index 16
+      break;
   }
 }
 
@@ -847,9 +986,9 @@ void handleParentMenu(int direction) {
 void handleEngineMenu(int direction) {
   // Only browse, don't auto-switch
   if (direction > 0) {
-    engineBrowseIndex = (engineBrowseIndex + 1) % 4; // 3 engines + 1 "Back" option
+    engineBrowseIndex = (engineBrowseIndex + 1) % 5; // 4 engines + 1 "Back" option
   } else {
-    engineBrowseIndex = (engineBrowseIndex + 3) % 4; // Handle wrap
+    engineBrowseIndex = (engineBrowseIndex + 4) % 5; // Handle wrap
   }
   updateDisplay();
 }
@@ -910,6 +1049,18 @@ void handleEncoder() {
             }
             updateDisplay();
           }
+        } else if (currentEngine == ENGINE_BRAIDS) {
+          // Braids preset browsing
+          if (inPresetBrowse) {
+            if (direction > 0) {
+              braidsPresetBrowseIndex++;
+              if (braidsPresetBrowseIndex > NUM_BRAIDS_PRESETS) braidsPresetBrowseIndex = 0;
+            } else {
+              braidsPresetBrowseIndex--;
+              if (braidsPresetBrowseIndex < 0) braidsPresetBrowseIndex = NUM_BRAIDS_PRESETS;
+            }
+            updateDisplay();
+          }
         } else if (currentEngine == ENGINE_DX7) {
           // DX7 bank/patch navigation
           if (currentMenuState == DX7_BANKS) {
@@ -962,6 +1113,41 @@ void handleEncoder() {
             updateDisplay();
           } else {
             // Navigate through VA menu structure
+            if (direction > 0) incrementMenuIndex();
+            else decrementMenuIndex();
+            updateDisplay();
+          }
+        } else if (currentEngine == ENGINE_BRAIDS) {
+          // Braids parameter navigation
+          if (getParameterIndex(currentMenuState) >= 0) {
+            // On a Braids parameter - adjust value
+            int paramIndex = getParameterIndex(currentMenuState);
+            int braidsParamIndex = paramIndex - 100; // Convert to 0-16 range
+            
+            if (direction > 0) {
+              // Increase parameter value
+              if (braidsParamIndex == 0) { // Shape - discrete 43 steps (0-42, QPSK is the last)
+                braidsParameters[braidsParamIndex] = constrain(braidsParameters[braidsParamIndex] + 1, 0, 42);
+              } else if (braidsParamIndex == 8) { // Filter mode - discrete 4 modes
+                braidsParameters[braidsParamIndex] = constrain(braidsParameters[braidsParamIndex] + 1, 0, 3);
+              } else {
+                // Other parameters - smooth adjustment
+                braidsParameters[braidsParamIndex] = constrain(braidsParameters[braidsParamIndex] + 1, 0, 127);
+              }
+            } else {
+              // Decrease parameter value
+              if (braidsParamIndex == 0) { // Shape
+                braidsParameters[braidsParamIndex] = constrain(braidsParameters[braidsParamIndex] - 1, 0, 42);
+              } else if (braidsParamIndex == 8) { // Filter mode
+                braidsParameters[braidsParamIndex] = constrain(braidsParameters[braidsParamIndex] - 1, 0, 3);
+              } else {
+                braidsParameters[braidsParamIndex] = constrain(braidsParameters[braidsParamIndex] - 1, 0, 127);
+              }
+            }
+            updateBraidsParameter(braidsParamIndex, braidsParameters[braidsParamIndex]);
+            updateDisplay();
+          } else {
+            // Navigate through Braids parameter menu structure
             if (direction > 0) incrementMenuIndex();
             else decrementMenuIndex();
             updateDisplay();
@@ -1048,6 +1234,9 @@ void handleEncoder() {
         } else if (currentEngine == ENGINE_JUNO) {
           inPresetBrowse = true;
           junoPresetBrowseIndex = 0;
+        } else if (currentEngine == ENGINE_BRAIDS) {
+          inPresetBrowse = true;
+          braidsPresetBrowseIndex = 0;
         } else if (currentEngine == ENGINE_DX7) {
           // Enter DX7 bank selection mode
           currentMenuState = DX7_BANKS;
@@ -1084,6 +1273,14 @@ void handleEncoder() {
             loadJunoPreset(junoPresetBrowseIndex); // Stay in presets
           }
           updateDisplay();
+        } else if (currentEngine == ENGINE_BRAIDS && inPresetBrowse) {
+          // Braids preset loading
+          if (braidsPresetBrowseIndex == NUM_BRAIDS_PRESETS) {
+            enterParentMenuLevel(); // Back to parent
+          } else {
+            loadBraidsPreset(braidsPresetBrowseIndex); // Stay in presets
+          }
+          updateDisplay();
         } else if (currentEngine == ENGINE_DX7) {
           // Handle DX7 bank/patch navigation
           if (currentMenuState == DX7_BANKS) {
@@ -1111,7 +1308,7 @@ void handleEncoder() {
         }
       } else if (currentParentMenu == PARENT_ENGINES) {
         // Engine click-to-select handling
-        if (engineBrowseIndex == 3) {
+        if (engineBrowseIndex == 4) {
           // "Back" option selected
           enterParentMenuLevel();
         } else {
@@ -1119,42 +1316,57 @@ void handleEncoder() {
           EngineType newEngine;
           switch(engineBrowseIndex) {
             case 0: newEngine = ENGINE_VA; break;
-            case 1: newEngine = ENGINE_JUNO; break;
-            case 2: newEngine = ENGINE_DX7; break;
+            case 1: newEngine = ENGINE_DX7; break;
+            case 2: newEngine = ENGINE_JUNO; break;
+            case 3: newEngine = ENGINE_BRAIDS; break;
             default: newEngine = ENGINE_VA; break;
           }
           switchEngine(newEngine);
           // Stay in engines menu after switching
         }
         updateDisplay();
-      } else if (currentParentMenu == PARENT_PARAMETERS && currentEngine == ENGINE_VA) {
-        // VA parameter navigation
-        if (getParameterIndex(currentMenuState) >= 0) {
-          backMenuAction();
-        } else if (currentMenuState == MACRO_KNOBS) {
-          macroMode = !macroMode;
-        } else {
-          // Check if we're in a submenu with "< Back" option
-          bool isBackButtonSelected = false;
-          if ((currentMenuState == OSC_1 || currentMenuState == OSC_2 || currentMenuState == OSC_3 || 
-               currentMenuState == LFO || currentMenuState == VOICE_MODE) && menuIndex == 4) {
-            isBackButtonSelected = true; // These menus have "< Back" at index 4
-          } else if (currentMenuState == ENVELOPES && menuIndex == 6) {
-            isBackButtonSelected = true; // Envelopes has "< Back" at index 6
-          } else if (currentMenuState == NOISE && menuIndex == 2) {
-            isBackButtonSelected = true; // Noise has "< Back" at index 2
-          } else if (currentMenuState == FILTER && menuIndex == 3) {
-            isBackButtonSelected = true; // Filter has "< Back" at index 3
-          }
-          
-          if (isBackButtonSelected) {
-            // "< Back" option selected
+      } else if (currentParentMenu == PARENT_PARAMETERS) {
+        if (currentEngine == ENGINE_VA) {
+          // VA parameter navigation
+          if (getParameterIndex(currentMenuState) >= 0) {
             backMenuAction();
-          } else if (currentMenuState == PARAMETERS && menuIndex == 8) {
-            // "< Back" from main Parameters menu
+          } else if (currentMenuState == MACRO_KNOBS) {
+            macroMode = !macroMode;
+          } else {
+            // Check if we're in a submenu with "< Back" option
+            bool isBackButtonSelected = false;
+            if ((currentMenuState == OSC_1 || currentMenuState == OSC_2 || currentMenuState == OSC_3 || 
+                 currentMenuState == LFO || currentMenuState == VOICE_MODE) && menuIndex == 4) {
+              isBackButtonSelected = true; // These menus have "< Back" at index 4
+            } else if (currentMenuState == ENVELOPES && menuIndex == 6) {
+              isBackButtonSelected = true; // Envelopes has "< Back" at index 6
+            } else if (currentMenuState == NOISE && menuIndex == 2) {
+              isBackButtonSelected = true; // Noise has "< Back" at index 2
+            } else if (currentMenuState == FILTER && menuIndex == 3) {
+              isBackButtonSelected = true; // Filter has "< Back" at index 3
+            }
+            
+            if (isBackButtonSelected) {
+              // "< Back" option selected
+              backMenuAction();
+            } else if (currentMenuState == PARAMETERS && menuIndex == 8) {
+              // "< Back" from main Parameters menu
+              enterParentMenuLevel();
+            } else {
+              // Normal forward navigation
+              navigateMenuForward();
+            }
+          }
+        } else if (currentEngine == ENGINE_BRAIDS) {
+          // Braids parameter navigation
+          if (getParameterIndex(currentMenuState) >= 0) {
+            // On a parameter, go back to menu
+            backMenuAction();
+          } else if (currentMenuState == PARAMETERS && menuIndex == 17) {
+            // "< Back" from main Parameters menu for Braids (17 params + back = index 17)
             enterParentMenuLevel();
           } else {
-            // Normal forward navigation
+            // Navigate forward in Braids parameter menu
             navigateMenuForward();
           }
         }
@@ -1264,9 +1476,11 @@ void updateDisplay() {
         if (engineBrowseIndex == 0) {
           line2 = "VA Analog";
         } else if (engineBrowseIndex == 1) {
-          line2 = "Juno-60";
-        } else if (engineBrowseIndex == 2) {
           line2 = "DX7 FM";
+        } else if (engineBrowseIndex == 2) {
+          line2 = "Juno-60";
+        } else if (engineBrowseIndex == 3) {
+          line2 = "Macro-Oscillator";
         } else {
           line2 = "< Back";
         }
@@ -1303,6 +1517,21 @@ void updateDisplay() {
             displayText("Juno Presets", "Loading...");
             inPresetBrowse = true;
             junoPresetBrowseIndex = 0;
+          }
+        } else if (currentEngine == ENGINE_BRAIDS) {
+          // Braids preset browsing
+          if (inPresetBrowse) {
+            line1 = "Macro-Osc Presets";
+            if (braidsPresetBrowseIndex == NUM_BRAIDS_PRESETS) {
+              line2 = "< Back";
+            } else {
+              line2 = String(braidsPresetBrowseIndex + 1) + ". " + String(braidsPresets[braidsPresetBrowseIndex].name);
+            }
+            displayText(line1, line2);
+          } else {
+            displayText("Macro-Osc Presets", "Loading...");
+            inPresetBrowse = true;
+            braidsPresetBrowseIndex = 0;
           }
         } else if (currentEngine == ENGINE_DX7) {
           // DX7 bank/patch browsing
@@ -1558,6 +1787,62 @@ void updateDisplay() {
             displayText(line1, line2);
           }
           break;
+          }
+        } else if (currentEngine == ENGINE_BRAIDS) {
+          // Braids parameters display system
+          switch(currentMenuState) {
+            case PARAMETERS:
+              line1 = "Macro-Osc Params";
+              if (menuIndex == 0) line2 = "Shape";
+              else if (menuIndex == 1) line2 = "Timbre";
+              else if (menuIndex == 2) line2 = "Color";
+              else if (menuIndex == 3) line2 = "Coarse";
+              else if (menuIndex == 4) line2 = "Amp Attack";
+              else if (menuIndex == 5) line2 = "Amp Decay";
+              else if (menuIndex == 6) line2 = "Amp Sustain";
+              else if (menuIndex == 7) line2 = "Amp Release";
+              else if (menuIndex == 8) line2 = "Filter Mode";
+              else if (menuIndex == 9) line2 = "Filter Cutoff";
+              else if (menuIndex == 10) line2 = "Filter Res";
+              else if (menuIndex == 11) line2 = "Filter Strength";
+              else if (menuIndex == 12) line2 = "Filt Attack";
+              else if (menuIndex == 13) line2 = "Filt Decay";
+              else if (menuIndex == 14) line2 = "Filt Sustain";
+              else if (menuIndex == 15) line2 = "Filt Release";
+              else if (menuIndex == 16) line2 = "Volume";
+              else if (menuIndex == 17) line2 = "< Back";
+              displayText(line1, line2);
+              break;
+              
+            default:
+              // Parameter editing for Braids
+              int paramIndex = getParameterIndex(currentMenuState);
+              if (paramIndex >= 0) {
+                int braidsParamIndex = paramIndex - 100; // Convert to 0-16 range
+                line1 = braidsControlNames[braidsParamIndex];
+                
+                // Braids-specific value displays
+                if (braidsParamIndex == 0) { // Shape
+                  int shape = (int)braidsParameters[braidsParamIndex];
+                  if (shape >= 0 && shape <= 42) {
+                    line2 = braidsAlgorithmNames[shape];
+                  } else {
+                    line2 = "Shape " + String(shape);
+                  }
+                } else if (braidsParamIndex == 8) { // Filter Mode
+                  int mode = (int)braidsParameters[braidsParamIndex];
+                  if (mode == 0) line2 = "Off";
+                  else if (mode == 1) line2 = "LowPass";
+                  else if (mode == 2) line2 = "BandPass";
+                  else line2 = "HighPass";
+                } else {
+                  // Show 0-127 values for other parameters
+                  int displayValue = (int)braidsParameters[braidsParamIndex];
+                  line2 = String(displayValue);
+                }
+                displayText(line1, line2);
+              }
+              break;
           }
         } else {
           // DX7 parameters - simple display for now
