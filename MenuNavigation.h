@@ -104,7 +104,29 @@ enum MenuState {
   BRAIDS_FILTER_DECAY,
   BRAIDS_FILTER_SUSTAIN,
   BRAIDS_FILTER_RELEASE,
-  BRAIDS_VOLUME
+  BRAIDS_VOLUME,
+  // Juno-60 parameter sub-menus (individual volume controls + LFO)
+  JUNO_PWM_VOLUME,
+  JUNO_PWM_WIDTH,
+  JUNO_SAW_VOLUME,
+  JUNO_SUB_VOLUME,
+  JUNO_NOISE_VOLUME,
+  JUNO_LFO_RATE,
+  JUNO_LFO_DELAY,
+  JUNO_LFO_TARGET,
+  JUNO_LFO_DEPTH,
+  JUNO_HPF_CUTOFF,
+  JUNO_LPF_CUTOFF,
+  JUNO_LPF_RESONANCE,
+  JUNO_FILTER_ENV,
+  JUNO_FILTER_ATTACK,
+  JUNO_FILTER_DECAY,
+  JUNO_FILTER_SUSTAIN,
+  JUNO_FILTER_RELEASE,
+  JUNO_AMP_ATTACK,
+  JUNO_AMP_DECAY,
+  JUNO_AMP_SUSTAIN,
+  JUNO_AMP_RELEASE
 };
 
 // EngineType now defined in config.h
@@ -126,6 +148,7 @@ void exitParentMenuLevel();
 void handleEncoder();
 void resetEncoderBaselines();
 void updateDisplay();
+void printCurrentPresetValues();
 
 // Utility functions
 int getParameterIndex(MenuState state);
@@ -133,6 +156,24 @@ float getOscillatorRange(float val);
 int getRangeIndex(float val);
 int getWaveformIndex(float val, int osc);
 int getMiniTeensyWaveform(float val, int osc);
+
+// Engine-specific parameter index functions
+int getVAParameterIndex(MenuState state);
+int getBraidsParameterIndex(MenuState state);
+int getDX7ParameterIndex(MenuState state);
+int getJunoParameterIndex(MenuState state);
+int getEffectsParameterIndex(MenuState state);
+
+// Engine-specific menu helpers
+int getEngineParameterMenuCount();
+void navigateVAParameterMenu(int menuIndex);
+void navigateBraidsParameterMenu(int menuIndex);
+void navigateJunoParameterMenu(int menuIndex);
+
+// Engine-specific parameter adjustment helpers
+void adjustVAParameter(int paramIndex, int direction);
+void adjustBraidsParameter(int paramIndex, int direction);
+void adjustJunoParameter(int paramIndex, int direction);
 
 // External variables that menu system needs access to
 extern bool inMenu;
@@ -200,7 +241,7 @@ struct MiniTeensyPreset {
 
 struct JunoPreset {
   const char* name;
-  float parameters[41]; // Unified 41-parameter structure including effects
+  float parameters[21]; // Native Juno 21-parameter structure
 };
 
 extern const MiniTeensyPreset presets[];
@@ -227,5 +268,10 @@ extern float braidsParameters[];
 extern const char* braidsControlNames[];
 extern const char* braidsAlgorithmNames[];
 extern void updateBraidsParameter(int paramIndex, float value);
+
+// Juno parameter system
+extern float junoParameters[];
+extern const char* junoControlNames[];
+extern void updateJunoParameter(int paramIndex, float value);
 
 #endif // MENU_NAVIGATION_H

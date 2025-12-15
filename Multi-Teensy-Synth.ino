@@ -23,11 +23,14 @@
 #include "MenuNavigation.h"
 #include <Encoder.h>
 
+//FM Synthesis
 #define DX7_IMPLEMENTATION
-#include "src/synth_dexed.h"
+#include "src/Synth_Dexed/synth_dexed.h"
+#include "src/Synth_Dexed/effect_platervbstereo.h"
+#include "dx7_roms_unpacked.h"
+
+//Macro-Oscillator 
 #include "src/Synth_Braids/synth_braids.h"
-#include "src/effect_platervbstereo.h"
-#include "dx7_rom1a_unpacked.h"
 
 #ifdef USE_LCD_DISPLAY
   #include <LiquidCrystal_I2C.h>
@@ -152,14 +155,24 @@ AudioFilterLadder        filter1[VOICES];  // Filter per voice
 AudioEffectEnvelope      ampEnv[VOICES], filtEnv[VOICES]; // Envelopes per voice
 AudioMixer4              voiceMix1, voiceMix2, finalMix;  // Mix voices together
 
-// J60 specific audio components
-AudioSynthWaveformSine   pwmLfo;           // PWM LFO for pulse width modulation
-AudioFilterBiquad        junoHPF[VOICES];  // High-pass filter per voice (J60 style)
+// J60 (Juno-60) Engine - Authentic DCO architecture with LFO
+AudioSynthWaveform       junoDcoPwm[VOICES];   // DCO PWM output 
+AudioSynthWaveform       junoDcoSaw[VOICES];   // DCO Sawtooth output
+AudioSynthWaveform       junoSubOsc[VOICES];   // Sub-oscillator (Square, -1 octave)
+AudioSynthNoiseWhite     junoNoise;            // White noise generator
+AudioSynthWaveformSine   junoLfo;              // Main Juno LFO (triangle wave like original)
+AudioSynthWaveformDc     junoDcFilter[VOICES]; // DC source for filter envelope per voice
+AudioMixer4              junoOscMix[VOICES];   // Mix PWM + Saw + Sub + Noise per voice
+AudioFilterLadder        junoFilter[VOICES];   // Main filter per voice  
+AudioFilterBiquad        junoHPF[VOICES];      // High-pass filter per voice (J60 style)
+AudioEffectEnvelope      junoAmpEnv[VOICES];   // Amplitude envelope per voice
+AudioEffectEnvelope      junoFiltEnv[VOICES];  // Filter envelope per voice
+AudioMixer4              junoVoiceMix1, junoVoiceMix2; // Mix 6 voices (4+2 pattern)
+AudioMixer4              junoFinalMix;          // Final Juno output to effects
 
 // Shared effects chain for all engines
 AudioEffectFlange        sharedFlangeL, sharedFlangeR;    // Shared stereo flanger/chorus for all engines
 AudioEffectPlateReverb   sharedPlateReverb;               // Shared plate reverb (stereo)
-AudioMixer4              junoMix, junoMix2, junoFinalMix; // Juno voice mixing and final mix before flange
 AudioMixer4              effectsInputL, effectsInputR;    // Mix all engines before effects
 AudioMixer4              finalMixL, finalMixR;            // Final stereo output mixers (effects + dry)
 short sharedFlangeDelayBufferL[FLANGE_DELAY_LENGTH];
@@ -245,31 +258,10 @@ AudioConnection patchCordMix6(filter1[5], 0, voiceMix2, 2);
 AudioConnection patchCordFinal1(voiceMix1, 0, finalMix, 0);
 AudioConnection patchCordFinal2(voiceMix2, 0, finalMix, 1);
 
-// J60 high-pass filter connections (parallel to main filter chain)
-AudioConnection patchCord_juno_hpf0(filter1[0], 0, junoHPF[0], 0);
-AudioConnection patchCord_juno_hpf1(filter1[1], 0, junoHPF[1], 0);
-AudioConnection patchCord_juno_hpf2(filter1[2], 0, junoHPF[2], 0);
-AudioConnection patchCord_juno_hpf3(filter1[3], 0, junoHPF[3], 0);
-AudioConnection patchCord_juno_hpf4(filter1[4], 0, junoHPF[4], 0);
-AudioConnection patchCord_juno_hpf5(filter1[5], 0, junoHPF[5], 0);
-
-// Juno voice mixing through high-pass filters (need additional mixers for 6 voices)
-AudioConnection patchCord_juno_mix1(junoHPF[0], 0, junoMix, 0);
-AudioConnection patchCord_juno_mix2(junoHPF[1], 0, junoMix, 1);
-AudioConnection patchCord_juno_mix3(junoHPF[2], 0, junoMix, 2);
-AudioConnection patchCord_juno_mix4(junoHPF[3], 0, junoMix, 3);
-AudioConnection patchCord_juno_mix5(junoHPF[4], 0, junoMix2, 0);
-AudioConnection patchCord_juno_mix6(junoHPF[5], 0, junoMix2, 1);
-
-// Combine both Juno mixers
-AudioConnection patchCord_juno_final1(junoMix, 0, junoFinalMix, 0);
-AudioConnection patchCord_juno_final2(junoMix2, 0, junoFinalMix, 1);
 
 // All engines route to shared effects input mixers
 AudioConnection patchCord_va_to_effectsL(finalMix, 0, effectsInputL, 0);       // VA to effects input left
 AudioConnection patchCord_va_to_effectsR(finalMix, 0, effectsInputR, 0);       // VA to effects input right
-AudioConnection patchCord_juno_to_effectsL(junoFinalMix, 0, effectsInputL, 1); // Juno to effects input left  
-AudioConnection patchCord_juno_to_effectsR(junoFinalMix, 0, effectsInputR, 1); // Juno to effects input right
 AudioConnection patchCord_dx7_to_effectsL(dexed, 0, effectsInputL, 2);         // DX7 to effects input left
 AudioConnection patchCord_dx7_to_effectsR(dexed, 0, effectsInputR, 2);         // DX7 to effects input right
 
@@ -308,6 +300,87 @@ AudioConnection patchCord_braids_v45_final(braidsVoiceMixer45, 0, braidsFinalMix
 // Connect final Braids mixer to effects (input 3)
 AudioConnection patchCord_braids_to_effectsL(braidsFinalMixer, 0, effectsInputL, 3);
 AudioConnection patchCord_braids_to_effectsR(braidsFinalMixer, 0, effectsInputR, 3);
+
+// Juno-60 audio connections - Authentic DCO architecture (PWM + Saw + Sub + Noise)
+// Voice 0 connections: PWM → Mix, Saw → Mix, Sub → Mix, Noise → Mix, Mix → Filter → Envelope → Voice Mix  
+AudioConnection patchCord_juno_pwm_mix0(junoDcoPwm[0], 0, junoOscMix[0], 0);   // DCO PWM to oscillator mixer
+AudioConnection patchCord_juno_saw_mix0(junoDcoSaw[0], 0, junoOscMix[0], 1);   // DCO Sawtooth to oscillator mixer
+AudioConnection patchCord_juno_sub_mix0(junoSubOsc[0], 0, junoOscMix[0], 2);   // Sub-osc to oscillator mixer  
+AudioConnection patchCord_juno_noise_mix0(junoNoise, 0, junoOscMix[0], 3);     // Noise to oscillator mixer
+AudioConnection patchCord_juno_mix_hpf0(junoOscMix[0], 0, junoHPF[0], 0);     // Osc mix to HPF
+AudioConnection patchCord_juno_hpf_flt0(junoHPF[0], 0, junoFilter[0], 0);     // HPF to LPF
+AudioConnection patchCord_juno_dcflt_env0(junoDcFilter[0], junoFiltEnv[0]);    // DC filter to filter envelope
+AudioConnection patchCord_juno_env_flt0(junoFiltEnv[0], 0, junoFilter[0], 1); // Filter envelope to LPF modulation
+AudioConnection patchCord_juno_flt_ampenv0(junoFilter[0], 0, junoAmpEnv[0], 0); // Filter to amp envelope
+AudioConnection patchCord_juno_ampenv_vmix0(junoAmpEnv[0], 0, junoVoiceMix1, 0); // Amp envelope to voice mixer
+
+// Voice 1 connections
+AudioConnection patchCord_juno_pwm_mix1(junoDcoPwm[1], 0, junoOscMix[1], 0);
+AudioConnection patchCord_juno_saw_mix1(junoDcoSaw[1], 0, junoOscMix[1], 1);
+AudioConnection patchCord_juno_sub_mix1(junoSubOsc[1], 0, junoOscMix[1], 2);
+AudioConnection patchCord_juno_noise_mix1(junoNoise, 0, junoOscMix[1], 3);
+AudioConnection patchCord_juno_mix_hpf1(junoOscMix[1], 0, junoHPF[1], 0);
+AudioConnection patchCord_juno_hpf_flt1(junoHPF[1], 0, junoFilter[1], 0);
+AudioConnection patchCord_juno_dcflt_env1(junoDcFilter[1], junoFiltEnv[1]);
+AudioConnection patchCord_juno_env_flt1(junoFiltEnv[1], 0, junoFilter[1], 1);
+AudioConnection patchCord_juno_flt_ampenv1(junoFilter[1], 0, junoAmpEnv[1], 0);
+AudioConnection patchCord_juno_ampenv_vmix1(junoAmpEnv[1], 0, junoVoiceMix1, 1);
+
+// Voice 2 connections
+AudioConnection patchCord_juno_pwm_mix2(junoDcoPwm[2], 0, junoOscMix[2], 0);
+AudioConnection patchCord_juno_saw_mix2(junoDcoSaw[2], 0, junoOscMix[2], 1);
+AudioConnection patchCord_juno_sub_mix2(junoSubOsc[2], 0, junoOscMix[2], 2);
+AudioConnection patchCord_juno_noise_mix2(junoNoise, 0, junoOscMix[2], 3);
+AudioConnection patchCord_juno_mix_hpf2(junoOscMix[2], 0, junoHPF[2], 0);
+AudioConnection patchCord_juno_hpf_flt2(junoHPF[2], 0, junoFilter[2], 0);
+AudioConnection patchCord_juno_dcflt_env2(junoDcFilter[2], junoFiltEnv[2]);
+AudioConnection patchCord_juno_env_flt2(junoFiltEnv[2], 0, junoFilter[2], 1);
+AudioConnection patchCord_juno_flt_ampenv2(junoFilter[2], 0, junoAmpEnv[2], 0);
+AudioConnection patchCord_juno_ampenv_vmix2(junoAmpEnv[2], 0, junoVoiceMix1, 2);
+
+// Voice 3 connections
+AudioConnection patchCord_juno_pwm_mix3(junoDcoPwm[3], 0, junoOscMix[3], 0);
+AudioConnection patchCord_juno_saw_mix3(junoDcoSaw[3], 0, junoOscMix[3], 1);
+AudioConnection patchCord_juno_sub_mix3(junoSubOsc[3], 0, junoOscMix[3], 2);
+AudioConnection patchCord_juno_noise_mix3(junoNoise, 0, junoOscMix[3], 3);
+AudioConnection patchCord_juno_mix_hpf3(junoOscMix[3], 0, junoHPF[3], 0);
+AudioConnection patchCord_juno_hpf_flt3(junoHPF[3], 0, junoFilter[3], 0);
+AudioConnection patchCord_juno_dcflt_env3(junoDcFilter[3], junoFiltEnv[3]);
+AudioConnection patchCord_juno_env_flt3(junoFiltEnv[3], 0, junoFilter[3], 1);
+AudioConnection patchCord_juno_flt_ampenv3(junoFilter[3], 0, junoAmpEnv[3], 0);
+AudioConnection patchCord_juno_ampenv_vmix3(junoAmpEnv[3], 0, junoVoiceMix1, 3);
+
+// Voice 4 connections
+AudioConnection patchCord_juno_pwm_mix4(junoDcoPwm[4], 0, junoOscMix[4], 0);
+AudioConnection patchCord_juno_saw_mix4(junoDcoSaw[4], 0, junoOscMix[4], 1);
+AudioConnection patchCord_juno_sub_mix4(junoSubOsc[4], 0, junoOscMix[4], 2);
+AudioConnection patchCord_juno_noise_mix4(junoNoise, 0, junoOscMix[4], 3);
+AudioConnection patchCord_juno_mix_hpf4(junoOscMix[4], 0, junoHPF[4], 0);
+AudioConnection patchCord_juno_hpf_flt4(junoHPF[4], 0, junoFilter[4], 0);
+AudioConnection patchCord_juno_dcflt_env4(junoDcFilter[4], junoFiltEnv[4]);
+AudioConnection patchCord_juno_env_flt4(junoFiltEnv[4], 0, junoFilter[4], 1);
+AudioConnection patchCord_juno_flt_ampenv4(junoFilter[4], 0, junoAmpEnv[4], 0);
+AudioConnection patchCord_juno_ampenv_vmix4(junoAmpEnv[4], 0, junoVoiceMix2, 0);
+
+// Voice 5 connections
+AudioConnection patchCord_juno_pwm_mix5(junoDcoPwm[5], 0, junoOscMix[5], 0);
+AudioConnection patchCord_juno_saw_mix5(junoDcoSaw[5], 0, junoOscMix[5], 1);
+AudioConnection patchCord_juno_sub_mix5(junoSubOsc[5], 0, junoOscMix[5], 2);
+AudioConnection patchCord_juno_noise_mix5(junoNoise, 0, junoOscMix[5], 3);
+AudioConnection patchCord_juno_mix_hpf5(junoOscMix[5], 0, junoHPF[5], 0);
+AudioConnection patchCord_juno_hpf_flt5(junoHPF[5], 0, junoFilter[5], 0);
+AudioConnection patchCord_juno_dcflt_env5(junoDcFilter[5], junoFiltEnv[5]);
+AudioConnection patchCord_juno_env_flt5(junoFiltEnv[5], 0, junoFilter[5], 1);
+AudioConnection patchCord_juno_flt_ampenv5(junoFilter[5], 0, junoAmpEnv[5], 0);
+AudioConnection patchCord_juno_ampenv_vmix5(junoAmpEnv[5], 0, junoVoiceMix2, 1);
+
+// Final Juno voice mixing: junoVoiceMix1 (voices 0-3) + junoVoiceMix2 (voices 4-5)
+AudioConnection patchCord_juno_vmix1_final(junoVoiceMix1, 0, junoFinalMix, 0);
+AudioConnection patchCord_juno_vmix2_final(junoVoiceMix2, 0, junoFinalMix, 1);
+
+// Connect final Juno mixer to effects (input 1)
+AudioConnection patchCord_juno_to_effectsL(junoFinalMix, 0, effectsInputL, 1);
+AudioConnection patchCord_juno_to_effectsR(junoFinalMix, 0, effectsInputR, 1);
 
 // Simplified effects chain: Input → Flanger → Plate Reverb → Output
 AudioConnection patchCord_effects_inL(effectsInputL, 0, sharedFlangeL, 0);     // Input to flanger
@@ -434,6 +507,46 @@ const char* braidsControlNames[NUM_BRAIDS_PARAMETERS] = {
   "Volume"
 };
 
+// Juno engine parameters (authentic DCO architecture with LFO)
+float junoParameters[NUM_JUNO_PARAMETERS] = {
+  0.8,    // 0: PWM Volume (0.0-1.0, displays as 0-127)
+  0.5,    // 1: PWM Width (0.0-1.0, pulse width)
+  0.8,    // 2: Sawtooth Volume (0.0-1.0, displays as 0-127) 
+  0.5,    // 3: Sub Volume (0.0-1.0, displays as 0-127, -1 octave square)
+  0.0,    // 4: Noise Volume (0.0-1.0, displays as 0-127, white noise)
+  0.3,    // 5: LFO Rate (0.0-1.0, 0.1Hz to 10Hz)
+  0.5,    // 6: LFO Delay (0.0-1.0, 0ms to 3000ms delay)
+  0.0,    // 7: LFO Target (0.0=Off, 0.33=PWM, 0.66=Pitch, 1.0=Filter)
+  0.5,    // 8: LFO Depth (0.0-1.0, modulation amount)
+  0.5,    // 9: HPF Cutoff (0.0-1.0, high-pass filter)
+  0.5,    // 10: LPF Cutoff (0.0-1.0, main low-pass filter)
+  0.2,    // 11: LPF Resonance (0.0-1.0)
+  0.5,    // 12: Filter Envelope Amount (0.0-1.0)
+  0.02,   // 13: Filter Attack (0.0-1.0)
+  0.3,    // 14: Filter Decay (0.0-1.0) 
+  0.8,    // 15: Filter Sustain (0.0-1.0)
+  0.5,    // 16: Filter Release (0.0-1.0)
+  0.02,   // 17: Amp Attack (0.0-1.0)
+  0.3,    // 18: Amp Decay (0.0-1.0) 
+  0.8,    // 19: Amp Sustain (0.0-1.0)
+  0.5     // 20: Amp Release (0.0-1.0)
+};
+
+const char* junoControlNames[NUM_JUNO_PARAMETERS] = {
+  "PWM Volume", "PWM Width", "Saw Volume", "Sub Volume", "Noise Volume",
+  "LFO Rate", "LFO Delay", "LFO Target", "LFO Depth",
+  "HPF Cutoff", "LPF Cutoff", "LPF Res", "Filter Env",
+  "Flt Attack", "Flt Decay", "Flt Sustain", "Flt Release", 
+  "Amp Attack", "Amp Decay", "Amp Sustain", "Amp Release"
+};
+
+// Juno LFO state (for authentic LFO delay behavior)
+unsigned long junoNoteOnTime[VOICES];   // Note-on time for LFO delay calculation
+bool junoLfoActive[VOICES];             // Whether LFO is active for each voice (after delay)
+float junoBasePwmWidth[VOICES];         // Base PWM width before LFO modulation
+float junoBaseFreq[VOICES];             // Base frequency before LFO modulation  
+float junoBaseCutoff[VOICES];           // Base filter cutoff before LFO modulation
+
 // Braids filter envelope state (for dynamic filter sweeps like MicroDexed-touch)
 float braidsFilterState[VOICES];        // Current filter frequency for each voice
 float braidsFilterTarget[VOICES];       // Target filter frequency for each voice  
@@ -535,23 +648,29 @@ int currentPreset = 0;
 
 // Classic J60 style presets (resonance reduced to prevent feedback)
 const JunoPreset junoPresets[] = {
-  // Classic Juno Bass - DCO sawtooth + sub-osc square, punchy filter (no chorus)
-  {"Juno Bass", {0.417, 0.417, 0.417, 0.500, 0.500, 0.417, 0.583, 0.417, 0.900, 0.400, 0.000, 0.350, 0.000, 0.010, 0.080, 0.600, 0.000, 0.000, 0.900, 0.020, 0.500, 1.000, 0.250, 0.000, 0.000, 0.200, 0.400, 0.000, 0.000, 0.000, 0.000, 1.000, 0.500, 0.500, 1.000, 0.500, 0.000, 0.700, 0.650, 0.000, 0.000}},
+  // Classic Juno Bass - PWM + Sawtooth + Sub, punchy filter envelope
+  {"Juno Bass", { 1.000, 0.600, 0.000, 0.394, 0.000, 0.080, 
+0.000, 0.250, 0.760, 0.100, 0.570, 0.152, 
+0.856, 0.000, 0.035, 0.000, 0.035, 0.000, 
+0.010, 0.900, 0.015 }},
   
-  // String Ensemble - Pulse wave + sub, slow attack, effects bypassed
-  {"Juno Strings", {0.417, 0.417, 0.417, 0.500, 0.500, 0.583, 0.583, 0.000, 0.600, 0.300, 0.000, 0.450, 0.000, 0.150, 0.350, 0.500, 0.000, 0.050, 0.700, 0.400, 0.500, 0.800, 0.200, 0.000, 0.000, 0.500, 0.600, 0.000, 0.000, 0.000, 0.000, 1.000, 0.500, 0.500, 1.000, 0.500, 0.000, 0.700, 0.650, 0.000, 0.000}},
+  // String Ensemble - Pulse waves + sub, slow attack, chorus
+  {"Juno Strings", {0.5, 0.3, 0.6, 0.4, 0.0, 0.08, 0.2, 0.0, 0.4, 0.0, 0.7, 0.1, 0.3, 0.08, 0.3, 0.7, 0.4, 0.1, 0.2, 0.8, 0.3}},
   
-  // Brass Stab - Sawtooth main + pulse, filter movement, punchy envelope (no chorus)
-  {"Juno Brass", {0.417, 0.417, 0.417, 0.500, 0.500, 0.417, 0.583, 0.417, 0.800, 0.300, 0.200, 0.500, 0.015, 0.030, 0.150, 0.400, 0.000, 0.000, 0.900, 0.080, 0.500, 1.000, 0.250, 0.000, 0.000, 0.300, 0.500, 0.000, 0.000, 0.000, 0.000, 1.000, 0.500, 0.500, 1.000, 0.500, 0.000, 0.700, 0.650, 0.000, 0.000}},
+  // Brass Stab - Sawtooth main + PWM, filter sweep, punchy envelope
+  {"Juno Brass", {0.6, 0.4, 0.9, 0.2, 0.0, 0.05, 0.0, 0.0, 0.3, 0.2, 0.8, 0.2, 0.6, 0.02, 0.15, 0.6, 0.25, 0.005, 0.03, 0.9, 0.08}},
   
-  // Polysynthesizer - PWM pulse waves, classic 80s poly sound with sub-osc, effects bypassed
-  {"Juno Poly", {0.417, 0.417, 0.417, 0.500, 0.500, 0.583, 0.583, 0.583, 0.700, 0.250, 0.100, 0.550, 0.008, 0.020, 0.200, 0.450, 0.000, 0.010, 0.750, 0.100, 0.500, 1.000, 0.250, 0.000, 0.000, 0.350, 0.450, 0.000, 0.000, 0.000, 0.000, 1.000, 0.500, 0.500, 1.000, 0.500, 0.000, 0.700, 0.650, 0.000, 0.000}},
+  // Polysynthesizer - PWM pulse waves, classic 80s poly sound
+  {"Juno Poly", {0.8, 0.25, 0.3, 0.3, 0.0, 0.12, 0.1, 0.0, 0.4, 0.0, 0.6, 0.15, 0.4, 0.03, 0.2, 0.7, 0.3, 0.015, 0.08, 0.8, 0.12}},
   
-  // Lead Synthesizer - Sawtooth + PWM pulse, filter sweep, sustain (no chorus)
-  {"Juno Lead", {0.417, 0.417, 0.417, 0.500, 0.500, 0.417, 0.583, 0.000, 0.900, 0.200, 0.000, 0.650, 0.025, 0.010, 0.100, 0.700, 0.000, 0.000, 0.900, 0.020, 0.500, 1.000, 0.250, 0.000, 0.000, 0.200, 0.700, 0.000, 0.000, 0.000, 0.000, 1.000, 0.500, 0.500, 1.000, 0.500, 0.000, 0.700, 0.650, 0.000, 0.000}},
+  // Lead Synthesizer - Sawtooth + PWM, filter sweep with LFO
+  {"Juno Lead", {0.7, 0.3, 0.9, 0.1, 0.0, 0.08, 0.15, 0.66, 0.6, 0.1, 0.7, 0.1, 0.8, 0.02, 0.08, 0.5, 0.4, 0.005, 0.01, 0.95, 0.02}},
   
-  // Warm Pad - PWM pulse waves only, slow everything, atmospheric, effects bypassed
-  {"Juno Pad", {0.417, 0.417, 0.417, 0.500, 0.500, 0.583, 0.583, 0.000, 0.500, 0.350, 0.000, 0.400, 0.000, 0.200, 0.500, 0.600, 0.000, 0.100, 0.600, 0.300, 0.500, 0.600, 0.200, 0.000, 0.000, 0.600, 0.650, 0.000, 0.000, 0.000, 0.000, 1.000, 0.500, 0.500, 1.000, 0.500, 0.000, 0.700, 0.650, 0.000, 0.000}}
+  // Warm Pad - PWM pulse + sub, slow everything, atmospheric
+  {"Juno Pad", {0.6, 0.2, 0.4, 0.5, 0.0, 0.06, 0.3, 0.0, 0.3, 0.0, 0.5, 0.08, 0.2, 0.12, 0.4, 0.8, 0.5, 0.08, 0.15, 0.7, 0.4}},
+  
+  // Arpeggio Lead - PWM + LFO on filter, bright and cutting  
+  {"Juno Arp", {0.9, 0.15, 0.5, 0.0, 0.0, 0.2, 0.05, 0.66, 0.8, 0.0, 0.8, 0.25, 0.5, 0.01, 0.1, 0.6, 0.2, 0.002, 0.01, 0.95, 0.01}}
 };
 
 // NUM_JUNO_PRESETS defined in config.h
@@ -816,39 +935,54 @@ void switchEngine(EngineType newEngine) {
       effectsInputL.gain(1, 0.0); effectsInputR.gain(1, 0.0);  // Juno off
       effectsInputL.gain(2, 0.0); effectsInputR.gain(2, 0.0);  // DX7 off
       effectsInputL.gain(3, 0.0); effectsInputR.gain(3, 0.0);  // Braids off
-      // Disable Braids audio processing to save CPU via mixer gains
+      // Disable other engines' audio processing to save CPU
       braidsMixer.gain(0, 0.0); braidsMixer.gain(1, 0.0); 
       braidsMixer.gain(2, 0.0); braidsMixer.gain(3, 0.0);
       braidsVoiceMixer45.gain(0, 0.0); braidsVoiceMixer45.gain(1, 0.0);
       braidsFinalMixer.gain(0, 0.0); braidsFinalMixer.gain(1, 0.0);
+      junoVoiceMix1.gain(0, 0.0); junoVoiceMix1.gain(1, 0.0);
+      junoVoiceMix1.gain(2, 0.0); junoVoiceMix1.gain(3, 0.0);
+      junoVoiceMix2.gain(0, 0.0); junoVoiceMix2.gain(1, 0.0);
+      junoFinalMix.gain(0, 0.0); junoFinalMix.gain(1, 0.0);
       // VA doesn't use effects by default
       finalMixL.gain(0, 0.0); finalMixR.gain(0, 0.0);  // Effects off
       break;
-    case ENGINE_JUNO:
+    case ENGINE_JUNO: {
       // Juno active, others disabled  
       effectsInputL.gain(0, 0.0); effectsInputR.gain(0, 0.0);  // VA off
       effectsInputL.gain(1, 1.0); effectsInputR.gain(1, 1.0);  // Juno active
       effectsInputL.gain(2, 0.0); effectsInputR.gain(2, 0.0);  // DX7 off
       effectsInputL.gain(3, 0.0); effectsInputR.gain(3, 0.0);  // Braids off
-      // Disable Braids audio processing to save CPU via mixer gains
+      // Disable Braids audio processing to save CPU
       braidsMixer.gain(0, 0.0); braidsMixer.gain(1, 0.0); 
       braidsMixer.gain(2, 0.0); braidsMixer.gain(3, 0.0);
       braidsVoiceMixer45.gain(0, 0.0); braidsVoiceMixer45.gain(1, 0.0);
       braidsFinalMixer.gain(0, 0.0); braidsFinalMixer.gain(1, 0.0);
-      // Effects mix controlled by preset (set in loadJunoPreset)
+      // Enable Juno audio processing
+      float voiceGain = 0.25;
+      for (int v = 0; v < 4; v++) {
+        junoVoiceMix1.gain(v, voiceGain);
+      }
+      junoVoiceMix2.gain(0, voiceGain); junoVoiceMix2.gain(1, voiceGain);
+      junoFinalMix.gain(0, 1.0); junoFinalMix.gain(1, 1.0);
       Serial.println("Using Juno engine with shared effects chain");
       break;
+    }
     case ENGINE_DX7:
       // DX7 active, others disabled
       effectsInputL.gain(0, 0.0); effectsInputR.gain(0, 0.0);  // VA off
       effectsInputL.gain(1, 0.0); effectsInputR.gain(1, 0.0);  // Juno off
       effectsInputL.gain(2, 0.6); effectsInputR.gain(2, 0.6);  // DX7 active (reduced volume)
       effectsInputL.gain(3, 0.0); effectsInputR.gain(3, 0.0);  // Braids off
-      // Disable Braids audio processing to save CPU via mixer gains
+      // Disable other engines' audio processing to save CPU
       braidsMixer.gain(0, 0.0); braidsMixer.gain(1, 0.0); 
       braidsMixer.gain(2, 0.0); braidsMixer.gain(3, 0.0);
       braidsVoiceMixer45.gain(0, 0.0); braidsVoiceMixer45.gain(1, 0.0);
       braidsFinalMixer.gain(0, 0.0); braidsFinalMixer.gain(1, 0.0);
+      junoVoiceMix1.gain(0, 0.0); junoVoiceMix1.gain(1, 0.0);
+      junoVoiceMix1.gain(2, 0.0); junoVoiceMix1.gain(3, 0.0);
+      junoVoiceMix2.gain(0, 0.0); junoVoiceMix2.gain(1, 0.0);
+      junoFinalMix.gain(0, 0.0); junoFinalMix.gain(1, 0.0);
       // DX7 doesn't use effects by default
       finalMixL.gain(0, 0.0); finalMixR.gain(0, 0.0);  // Effects off
       break;
@@ -863,6 +997,11 @@ void switchEngine(EngineType newEngine) {
       braidsMixer.gain(2, 0.25); braidsMixer.gain(3, 0.25);
       braidsVoiceMixer45.gain(0, 0.25); braidsVoiceMixer45.gain(1, 0.25);
       braidsFinalMixer.gain(0, 0.5); braidsFinalMixer.gain(1, 0.5);
+      // Disable Juno audio processing to save CPU
+      junoVoiceMix1.gain(0, 0.0); junoVoiceMix1.gain(1, 0.0);
+      junoVoiceMix1.gain(2, 0.0); junoVoiceMix1.gain(3, 0.0);
+      junoVoiceMix2.gain(0, 0.0); junoVoiceMix2.gain(1, 0.0);
+      junoFinalMix.gain(0, 0.0); junoFinalMix.gain(1, 0.0);
       // Braids uses effects by default for modular sound
       finalMixL.gain(0, 0.3); finalMixR.gain(0, 0.3);  // Effects on (moderate level)
       Serial.println("Using Braids engine with shared effects chain");
@@ -876,9 +1015,7 @@ void switchEngine(EngineType newEngine) {
       break;
     case ENGINE_JUNO:
       loadJunoPreset(0); // Load first Juno preset
-      // Apply J60 specific parameter constraints
-      applyJunoParameterMapping();
-      Serial.println("J60 engine configured with authentic parameters");
+      Serial.println("J60 engine configured with dedicated parameters");
       break;
     case ENGINE_DX7:
       loadDX7Preset(0); // Load first DX7 preset
@@ -926,14 +1063,22 @@ void loadJunoPreset(int presetIndex) {
   Serial.print(": ");
   Serial.println(junoPresets[presetIndex].name);
   
-  // Load all parameter values from preset (41 parameters unified structure)
-  for (int i = 0; i < 41; i++) {
-    allParameterValues[i] = junoPresets[presetIndex].parameters[i];
-    updateSynthParameter(i, allParameterValues[i]);
+  currentJunoPreset = presetIndex;
+  
+  // Load native 21-parameter Juno preset directly
+  const float* presetParams = junoPresets[presetIndex].parameters;
+  
+  // Copy all 21 Juno parameters directly (no conversion needed)
+  for (int i = 0; i < NUM_JUNO_PARAMETERS; i++) {
+    junoParameters[i] = presetParams[i];
   }
   
-  currentJunoPreset = presetIndex;
-  applyJunoParameterMapping();
+  // Apply all Juno parameters
+  for (int i = 0; i < NUM_JUNO_PARAMETERS; i++) {
+    updateJunoParameter(i, junoParameters[i]);
+  }
+  
+  Serial.println("Juno preset loaded successfully");
 }
 
 // DX7 preset loading
@@ -1076,6 +1221,7 @@ void updateBraidsParameter(int paramIndex, float value) {
   }
 }
 
+
 // Braids filter envelope update (called regularly like MicroDexed-touch)
 void updateBraidsFilterEnvelope() {
   if (currentEngine != ENGINE_BRAIDS) return;
@@ -1192,10 +1338,93 @@ void noteOn(int note, int velocity) {
     return;
   }
   
+  if (currentEngine == ENGINE_JUNO) {
+    // Route to Juno engine with polyphonic voice allocation
+    int voiceNum = -1;
+    
+    if (playMode == 0) {
+      // Mono mode - use note stack but retrigger envelope for every new note
+      addToMonoStack(note);
+      
+      // Turn off other voices if they're somehow active
+      for (int v = 1; v < VOICES; v++) {
+        if (voices[v].active) {
+          junoAmpEnv[v].noteOff();
+          junoFiltEnv[v].noteOff();
+          voices[v].active = false;
+        }
+      }
+      
+      // Always use voice 0 for mono mode
+      voiceNum = 0;
+      
+      // If this is not the top note, don't trigger it yet
+      if (getTopMonoNote() != note) {
+        return;
+      }
+    } else {
+      // Poly mode - find a free voice or steal oldest
+      for (int v = 0; v < VOICES; v++) {
+        if (!voices[v].active) {
+          voiceNum = v;
+          break;
+        }
+      }
+      
+      // If no free voices, steal the oldest
+      if (voiceNum == -1) {
+        unsigned long oldestTime = voices[0].noteOnTime;
+        voiceNum = 0;
+        for (int v = 1; v < VOICES; v++) {
+          if (voices[v].noteOnTime < oldestTime) {
+            oldestTime = voices[v].noteOnTime;
+            voiceNum = v;
+          }
+        }
+        // Stop the stolen voice
+        junoAmpEnv[voiceNum].noteOff();
+        junoFiltEnv[voiceNum].noteOff();
+      }
+    }
+    
+    // Set voice parameters
+    voices[voiceNum].note = note;
+    voices[voiceNum].active = true;
+    voices[voiceNum].noteOnTime = millis();
+    
+    // Initialize Juno LFO state for this voice
+    junoNoteOnTime[voiceNum] = millis();
+    junoLfoActive[voiceNum] = false; // Will activate after delay
+    
+    // Set Juno oscillator frequencies (authentic DCO architecture)
+    float noteFreq = 440.0 * pow(2.0, (note - 69) / 12.0);
+    junoBaseFreq[voiceNum] = noteFreq; // Store base frequency for LFO modulation
+    
+    // DCO PWM and Sawtooth (same frequency)
+    junoDcoPwm[voiceNum].frequency(noteFreq);
+    junoDcoPwm[voiceNum].begin(WAVEFORM_PULSE);
+    junoDcoSaw[voiceNum].frequency(noteFreq);
+    junoDcoSaw[voiceNum].begin(WAVEFORM_SAWTOOTH);
+    
+    // Sub-oscillator (-1 octave, square wave)
+    junoSubOsc[voiceNum].frequency(noteFreq * 0.5);
+    junoSubOsc[voiceNum].begin(WAVEFORM_SQUARE);
+    
+    // Set initial PWM width (will be modulated by LFO)
+    junoBasePwmWidth[voiceNum] = 0.1 + (junoParameters[1] * 0.8); // PWM Width is index 1
+    junoDcoPwm[voiceNum].pulseWidth(junoBasePwmWidth[voiceNum]);
+    
+    // Filter cutoff is managed globally like VA engine - not set per voice on note-on
+    
+    // Trigger envelopes
+    junoAmpEnv[voiceNum].noteOn();
+    junoFiltEnv[voiceNum].noteOn();
+    
+    return;
+  }
   
-  // VA and Juno engines use the same voice management - 
-  // the voice processing will drive both engines simultaneously
-  // Original VA note handling code follows
+  
+  // VA engine note handling
   int voiceNum = -1;
   
   if (playMode == 0) {
@@ -1395,8 +1624,52 @@ void noteOff(int note) {
     return;
   }
   
-  // VA and Juno engines use the same voice management
-  // Original VA note off handling
+  if (currentEngine == ENGINE_JUNO) {
+    // Route to Juno engine with polyphonic voice management
+    if (playMode == 0) {
+      // Mono mode - use note stack and retrigger envelope for next note
+      removeFromMonoStack(note);
+      
+      // If the released note was the currently playing note
+      if (voices[0].active && voices[0].note == note) {
+        // Stop current envelope
+        junoAmpEnv[0].noteOff();
+        junoFiltEnv[0].noteOff();
+        
+        int nextNote = getTopMonoNote();
+        if (nextNote != -1) {
+          // Play the next note in the stack WITH envelope retrigger (mono behavior)
+          voices[0].note = nextNote;
+          
+          // Set frequencies for next note
+          float noteFreq = 440.0 * pow(2.0, (nextNote - 69) / 12.0);
+          junoDcoPwm[0].frequency(noteFreq);        // DCO PWM
+          junoDcoSaw[0].frequency(noteFreq);        // DCO Sawtooth
+          junoSubOsc[0].frequency(noteFreq * 0.5);  // Sub-oscillator (-1 octave)
+          
+          // Retrigger envelope for the next note (mono behavior)
+          junoAmpEnv[0].noteOn();
+          junoFiltEnv[0].noteOn();
+        } else {
+          // No more notes - voice stays off
+          voices[0].active = false;
+        }
+      }
+    } else {
+      // Poly mode - find the voice with this note and turn it off
+      for (int v = 0; v < VOICES; v++) {
+        if (voices[v].active && voices[v].note == note) {
+          junoAmpEnv[v].noteOff();
+          junoFiltEnv[v].noteOff();
+          voices[v].active = false;
+          break;
+        }
+      }
+    }
+    return;
+  }
+  
+  // VA engine note off handling
   if (playMode == 0) {
     // Mono mode - use note stack and retrigger envelope for next note
     removeFromMonoStack(note);
@@ -1672,33 +1945,89 @@ void setup() {
   
   Serial.println("Braids initialization complete");
   
-  // Initialize J60 specific components
-  Serial.println("Initializing J60 components...");
+  // Initialize Juno-60 engine (6 voices)
+  Serial.println("Initializing Juno-60 DCO synthesizer engine (6 voices)...");
   
-  // PWM LFO initialization
-  pwmLfo.frequency(0.5);      // Slow PWM sweep by default
-  pwmLfo.amplitude(1.0);
+  float junoVoiceGain = 0.25; // Per-voice gain for 4 voices mixed down
   
-  // High-pass filters for Juno voices (removes low-end mud, J60 characteristic)
+  // Initialize each Juno voice
   for (int v = 0; v < VOICES; v++) {
-    junoHPF[v].setHighpass(0, 24, 0.7); // 24Hz high-pass with slight resonance
+    // DCO initialization (PWM + Sawtooth)
+    junoDcoPwm[v].begin(WAVEFORM_PULSE);
+    junoDcoPwm[v].frequency(440.0);
+    junoDcoPwm[v].amplitude(0.8);
+    junoDcoPwm[v].pulseWidth(0.5); // 50% default
+    
+    junoDcoSaw[v].begin(WAVEFORM_SAWTOOTH);
+    junoDcoSaw[v].frequency(440.0);
+    junoDcoSaw[v].amplitude(0.8);
+    
+    // Sub-oscillator initialization (always square wave, -1 octave)
+    junoSubOsc[v].begin(WAVEFORM_SQUARE);
+    junoSubOsc[v].frequency(220.0);  // -1 octave from DCO
+    junoSubOsc[v].amplitude(0.5);
+    
+    // Oscillator mixer setup (will be set by default parameters)
+    junoOscMix[v].gain(0, 0.0);  // PWM channel (set by parameters)
+    junoOscMix[v].gain(1, 0.0);  // Sawtooth channel (set by parameters)
+    junoOscMix[v].gain(2, 0.0);  // Sub-oscillator channel (set by parameters)
+    junoOscMix[v].gain(3, 0.0);  // Noise channel (set by parameters)
+    
+    // Filter initialization
+    junoFilter[v].frequency(cutoff);  // Default cutoff
+    junoFilter[v].resonance(0.0);     // No resonance initially (set by parameters)
+    junoFilter[v].octaveControl(3.0); // Proper filter response like VA engine
+    
+    // DC filter initialization (for filter envelope like VA engine)
+    junoDcFilter[v].amplitude(0.5);   // No filter envelope initially (set by parameters)
+    
+    // HPF initialization (Juno characteristic)
+    junoHPF[v].setHighpass(0, 24, 0.0); // 24Hz high-pass with slight resonance
+    
+    // Envelope initialization
+    junoAmpEnv[v].attack(0.0);     // Quick attack
+    junoAmpEnv[v].decay(100.0);    // Medium decay
+    junoAmpEnv[v].sustain(0.8);    // High sustain 
+    junoAmpEnv[v].release(100.0);  // Medium release
+    
+    junoFiltEnv[v].attack(0.0);
+    junoFiltEnv[v].decay(100.0);
+    junoFiltEnv[v].sustain(0.0);
+    junoFiltEnv[v].release(100.0);
   }
   
-  // Juno voice mixers
-  junoMix.gain(0, 1.0);
-  junoMix.gain(1, 1.0);
-  junoMix.gain(2, 1.0);
-  junoMix.gain(3, 1.0);
+  // Juno LFO initialization
+  junoLfo.frequency(0.5);      // Slow LFO by default
+  junoLfo.amplitude(1.0);
+  // Note: AudioSynthWaveformSine generates sine waves by default, no begin() needed
   
-  junoMix2.gain(0, 1.0);
-  junoMix2.gain(1, 1.0);
-  junoMix2.gain(2, 0.0);
-  junoMix2.gain(3, 0.0);
+  // Juno noise generator initialization
+  junoNoise.amplitude(0.3);    // Moderate noise level
   
-  junoFinalMix.gain(0, 0.6);  // Main voices
-  junoFinalMix.gain(1, 0.6);  // Additional voices
-  junoFinalMix.gain(2, 0.0);
-  junoFinalMix.gain(3, 0.0);
+  // Voice mixer setup (voices 0-3 into first mixer)
+  for (int v = 0; v < 4; v++) {
+    junoVoiceMix1.gain(v, junoVoiceGain);
+  }
+  
+  // Voices 4-5 into secondary mixer (2 voices) 
+  junoVoiceMix2.gain(0, junoVoiceGain);  // Voice 4
+  junoVoiceMix2.gain(1, junoVoiceGain);  // Voice 5
+  junoVoiceMix2.gain(2, 0.0);       // Unused
+  junoVoiceMix2.gain(3, 0.0);       // Unused
+  
+  // Final mixer combines both submixers
+  junoFinalMix.gain(0, 1.0);  // Main mixer (voices 0-3)
+  junoFinalMix.gain(1, 1.0);  // Voice mixer 4-5
+  junoFinalMix.gain(2, 0.0);  // Unused
+  junoFinalMix.gain(3, 0.0);  // Unused
+  
+  // Apply initial Juno parameter values
+  Serial.println("Setting initial Juno parameters...");
+  for (int i = 0; i < NUM_JUNO_PARAMETERS; i++) {
+    updateJunoParameter(i, junoParameters[i]);
+  }
+  
+  Serial.println("Juno-60 initialization complete");
   
   // Shared flange effect initialization
   int s_idx = FLANGE_DELAY_LENGTH/4;     // Index into delay line
@@ -1818,78 +2147,6 @@ void readAllControls() {
 #endif
 }
 
-// Core synthesis parameter update function
-// Apply J60 specific parameter mapping
-void applyJunoParameterMapping() {
-  if (currentEngine != ENGINE_JUNO) return;
-  
-  // J60 oscillator configuration
-  // DCO (Digital Controlled Oscillator) setup
-  // Osc1 = Main DCO (PWM or Sawtooth)
-  // Osc2 = Sub-oscillator (Square wave, -1 octave)  
-  // Osc3 = Additional oscillator for noise/effects
-  
-  // Force J60 appropriate ranges
-  osc1Range = 1.0;  // No range control on J60
-  osc2Range = 0.5;  // Sub-oscillator is always -1 octave
-  osc3Range = 1.0;  // Standard range
-  
-  // Force J60 fine tune off
-  osc1Fine = 1.0;   // No fine tune on J60
-  osc2Fine = 1.0;   // No fine tune on J60
-  osc3Fine = 1.0;   // No fine tune on J60
-  
-  // J60 authentic DCO behavior:
-  // DCO Section: PWM OR Sawtooth (not both)
-  // Sub-oscillator: Square wave -1 octave (independent)
-  
-  // J60 DCO waveform selection logic
-  // Use osc1 and osc2 volumes to determine which DCO waveform is active
-  if (vol1 > 0.0 && vol2 > 0.0) {
-    // Both volumes up - need to choose one DCO waveform
-    // Use osc1Wave to determine DCO selection
-    if (osc1Wave == WAVEFORM_SAWTOOTH || osc1Wave == WAVEFORM_BANDLIMIT_SAWTOOTH) {
-      // Sawtooth selected - disable PWM, enable saw + sub
-      osc1Wave = WAVEFORM_BANDLIMIT_SAWTOOTH;
-      osc2Wave = WAVEFORM_SQUARE;  // Sub-oscillator
-      vol1 = vol1;  // Keep sawtooth volume
-      vol2 = vol2;  // Keep sub volume
-    } else {
-      // PWM selected - disable saw, enable PWM + sub  
-      osc1Wave = WAVEFORM_BANDLIMIT_PULSE;
-      osc2Wave = WAVEFORM_SQUARE;  // Sub-oscillator
-      vol1 = vol1;  // Keep PWM volume
-      vol2 = vol2;  // Keep sub volume
-    }
-  } else if (vol1 > 0.0) {
-    // Only main DCO active
-    if (osc1Wave == WAVEFORM_SAWTOOTH || osc1Wave == WAVEFORM_BANDLIMIT_SAWTOOTH) {
-      osc1Wave = WAVEFORM_BANDLIMIT_SAWTOOTH;
-    } else {
-      osc1Wave = WAVEFORM_BANDLIMIT_PULSE;
-    }
-    osc2Wave = WAVEFORM_SQUARE;  // Sub always square when used
-  } else if (vol2 > 0.0) {
-    // Only sub-oscillator active
-    osc1Wave = WAVEFORM_BANDLIMIT_PULSE;  // DCO off but need valid waveform
-    osc2Wave = WAVEFORM_SQUARE;  // Sub-oscillator
-  }
-  
-  // Force osc3 off for authentic 2-oscillator J60 behavior
-  vol3 = 0.0;
-  osc3Wave = WAVEFORM_SQUARE;
-  
-  // J60 envelope: Single ADSR shared by filter and amp
-  // Use filter envelope parameters for both filter and amp
-  ampAttack = filtAttack;
-  ampDecay = filtDecay; 
-  ampSustain = filtSustain;
-  ampRelease = filtRelease;
-  
-  // Apply to all active voices
-  updateOscillatorFrequencies();
-  updateEnvelopes();
-}
 
 void updateSynthParameter(int paramIndex, float val) {
   // Convert to appropriate ranges and update parameters
@@ -2269,6 +2526,224 @@ int getTopMonoNote() {
 
 
 
+// ================================================================================================
+// JUNO-60 ENGINE FUNCTIONS
+// ================================================================================================
+
+void updateJunoParameter(int paramIndex, float value) {
+  if (paramIndex < 0 || paramIndex >= NUM_JUNO_PARAMETERS) return;
+  
+  // Update parameter value
+  junoParameters[paramIndex] = constrain(value, 0.0, 1.0);
+  
+  switch (paramIndex) {
+    case 0: // PWM Volume
+      for (int v = 0; v < VOICES; v++) {
+        junoOscMix[v].gain(0, junoParameters[0]); // Direct volume control (0.0-1.0)
+      }
+      break;
+    case 1: // PWM Width
+      for (int v = 0; v < VOICES; v++) {
+        junoBasePwmWidth[v] = 0.1 + (junoParameters[1] * 0.8); // 10% to 90% width
+        junoDcoPwm[v].pulseWidth(junoBasePwmWidth[v]); // Will be modulated by LFO if active
+      }
+      break;
+    case 2: // Sawtooth Volume
+      for (int v = 0; v < VOICES; v++) {
+        junoOscMix[v].gain(1, junoParameters[2]); // Direct volume control (0.0-1.0)
+      }
+      break;
+    case 3: // Sub Volume
+      for (int v = 0; v < VOICES; v++) {
+        junoOscMix[v].gain(2, junoParameters[3]); // Direct volume control (0.0-1.0)
+      }
+      break;
+    case 4: // Noise Volume
+      for (int v = 0; v < VOICES; v++) {
+        junoOscMix[v].gain(3, junoParameters[4]); // Direct volume control (0.0-1.0)
+      }
+      break;
+    case 5: // LFO Rate
+      {
+        float lfoRate = 0.1 + (junoParameters[5] * 9.9); // 0.1Hz to 10Hz
+        junoLfo.frequency(lfoRate);
+      }
+      break;
+    case 6: // LFO Delay - handled in updateJunoLfo()
+      break;
+    case 7: // LFO Target - handled in updateJunoLfo()
+      break;
+    case 8: // LFO Depth - handled in updateJunoLfo()
+      break;
+    case 9: // HPF Cutoff (shifted from 8 to 9)
+      for (int v = 0; v < VOICES; v++) {
+        float hpfFreq = 50.0 + (junoParameters[9] * 1950.0); // 50Hz to 2kHz
+        junoHPF[v].setHighpass(0, hpfFreq, 0.707);
+      }
+      break;
+    case 10: // LPF Cutoff (shifted from 9 to 10)
+      {
+        // Logarithmic frequency response like VA engine (20Hz to 20kHz)
+        float cutoffFreq = 20 * pow(1000.0, junoParameters[10]); // 20Hz to 20kHz logarithmic
+        for (int v = 0; v < VOICES; v++) {
+          junoBaseCutoff[v] = cutoffFreq; // Update base cutoff for LFO modulation
+          junoFilter[v].frequency(cutoffFreq); // Set immediately like VA engine
+        }
+      }
+      break;
+    case 11: // LPF Resonance (shifted from 10 to 11)
+      for (int v = 0; v < VOICES; v++) {
+        float resonance = junoParameters[11] * 3.0; // 0.0 to 3.0 (same as VA engine)
+        junoFilter[v].resonance(resonance);
+      }
+      break;
+    case 12: // Filter Envelope Amount (shifted from 11 to 12)
+      for (int v = 0; v < VOICES; v++) {
+        junoDcFilter[v].amplitude(junoParameters[12]); // Filter envelope depth like VA engine
+      }
+      break;
+    case 13: // Filter Attack (shifted from 12 to 13)
+      for (int v = 0; v < VOICES; v++) {
+        float attack = 1.0 + (junoParameters[13] * 4999.0); // 1ms to 5s
+        junoFiltEnv[v].attack(attack);
+      }
+      break;
+    case 14: // Filter Decay (shifted from 13 to 14)
+      for (int v = 0; v < VOICES; v++) {
+        float decay = 1.0 + (junoParameters[14] * 4999.0); // 1ms to 5s
+        junoFiltEnv[v].decay(decay);
+      }
+      break;
+    case 15: // Filter Sustain (shifted from 14 to 15)
+      for (int v = 0; v < VOICES; v++) {
+        junoFiltEnv[v].sustain(junoParameters[15]); // 0.0 to 1.0
+      }
+      break;
+    case 16: // Filter Release (shifted from 15 to 16)
+      for (int v = 0; v < VOICES; v++) {
+        float release = 1.0 + (junoParameters[16] * 4999.0); // 1ms to 5s
+        junoFiltEnv[v].release(release);
+      }
+      break;
+    case 17: // Amp Attack (shifted from 16 to 17)
+      for (int v = 0; v < VOICES; v++) {
+        float attack = 1.0 + (junoParameters[17] * 4999.0); // 1ms to 5s
+        junoAmpEnv[v].attack(attack);
+      }
+      break;
+    case 18: // Amp Decay (shifted from 17 to 18)
+      for (int v = 0; v < VOICES; v++) {
+        float decay = 1.0 + (junoParameters[18] * 4999.0); // 1ms to 5s
+        junoAmpEnv[v].decay(decay);
+      }
+      break;
+    case 19: // Amp Sustain (shifted from 18 to 19)
+      for (int v = 0; v < VOICES; v++) {
+        junoAmpEnv[v].sustain(junoParameters[19]); // 0.0 to 1.0
+      }
+      break;
+    case 20: // Amp Release (shifted from 19 to 20)
+      for (int v = 0; v < VOICES; v++) {
+        float release = 1.0 + (junoParameters[20] * 4999.0); // 1ms to 5s
+        junoAmpEnv[v].release(release);
+      }
+      break;
+  }
+}
+
+
+// Update Juno LFO modulation (called from main loop)
+void updateJunoLFOModulation() {
+  if (currentEngine != ENGINE_JUNO) return;
+  
+  // Throttle LFO updates to reduce CPU load
+  static unsigned long lastJunoLFOUpdate = 0;
+  unsigned long currentTime = millis();
+  
+  if (currentTime - lastJunoLFOUpdate < 5) return; // 200Hz update rate
+  lastJunoLFOUpdate = currentTime;
+  
+  // Check if LFO is active (rate > 0 and target is set)
+  float lfoRate = 0.1 + (junoParameters[5] * 9.9); // 0.1Hz to 10Hz
+  float lfoTarget = junoParameters[7]; // 0.0=Off, 0.33=PWM, 0.66=Pitch, 1.0=Filter
+  float lfoDepth = junoParameters[8]; // 0.0-1.0, modulation depth
+  
+  if (lfoTarget < 0.1) {
+    // LFO is off - reset all voices to base values
+    for (int v = 0; v < VOICES; v++) {
+      if (!voices[v].active) continue;
+      
+      // Reset PWM width to base value
+      junoDcoPwm[v].pulseWidth(junoBasePwmWidth[v]);
+      
+      // Reset oscillator frequencies to base note frequency
+      float baseFreq = 440.0 * pow(2.0, (voices[v].note - 69) / 12.0);
+      junoDcoPwm[v].frequency(baseFreq);
+      junoDcoSaw[v].frequency(baseFreq);
+      junoSubOsc[v].frequency(baseFreq * 0.5);
+      
+      // Reset filter frequency to base cutoff
+      junoFilter[v].frequency(junoBaseCutoff[v]);
+      
+      junoLfoActive[v] = false;
+    }
+    return; // LFO is off
+  }
+  
+  // Calculate LFO output with delay per voice
+  for (int v = 0; v < VOICES; v++) {
+    if (!voices[v].active) continue;
+    
+    // Check LFO delay (authentic Juno feature)
+    float lfoDelay = junoParameters[6] * 3000.0; // 0-3000ms delay
+    unsigned long voiceAge = currentTime - junoNoteOnTime[v];
+    
+    if (voiceAge < lfoDelay) {
+      junoLfoActive[v] = false;
+      // During delay period, reset to base values (no LFO modulation)
+      junoDcoPwm[v].pulseWidth(junoBasePwmWidth[v]);
+      float baseFreq = 440.0 * pow(2.0, (voices[v].note - 69) / 12.0);
+      junoDcoPwm[v].frequency(baseFreq);
+      junoDcoSaw[v].frequency(baseFreq);
+      junoSubOsc[v].frequency(baseFreq * 0.5);
+      junoFilter[v].frequency(junoBaseCutoff[v]);
+      continue; // Still in delay period
+    }
+    
+    junoLfoActive[v] = true;
+    
+    // Calculate LFO phase and output
+    float phase = ((currentTime - junoNoteOnTime[v] - lfoDelay) * lfoRate * 2 * PI) / 1000.0;
+    float lfoOut = sin(phase); // -1.0 to +1.0
+    
+    // Apply LFO based on target (scaled by depth parameter)
+    if (lfoTarget < 0.4) {
+      // PWM target (0.0-0.33 range)  
+      float pwmMod = lfoOut * 0.1 * lfoDepth; // ±10% pulse width modulation scaled by depth
+      float modulatedWidth = junoBasePwmWidth[v] + pwmMod;
+      modulatedWidth = constrain(modulatedWidth, 0.05, 0.95);
+      junoDcoPwm[v].pulseWidth(modulatedWidth);
+      
+    } else if (lfoTarget < 0.7) {
+      // Pitch target (0.33-0.66 range)  
+      float pitchMod = lfoOut * 0.05 * lfoDepth; // ±5% frequency modulation scaled by depth
+      float baseFreq = 440.0 * pow(2.0, (voices[v].note - 69) / 12.0);
+      float modulatedFreq = baseFreq * (1.0 + pitchMod);
+      
+      junoDcoPwm[v].frequency(modulatedFreq);
+      junoDcoSaw[v].frequency(modulatedFreq);
+      junoSubOsc[v].frequency(modulatedFreq * 0.5); // Sub is -1 octave
+      
+    } else {
+      // Filter target (0.66-1.0 range)
+      float filterMod = lfoOut * 1000.0 * lfoDepth; // ±1000Hz filter modulation scaled by depth
+      float modulatedCutoff = junoBaseCutoff[v] + filterMod;
+      modulatedCutoff = constrain(modulatedCutoff, 20.0, 8000.0);
+      junoFilter[v].frequency(modulatedCutoff);
+    }
+  }
+}
+
 // All menu navigation functions moved to MenuNavigation.cpp
 
 void loop() {
@@ -2316,11 +2791,16 @@ void loop() {
   // Update LFO filter modulation
   updateLFOModulation();
   
+  // Update Juno LFO modulation (PWM, Pitch, Filter with delay)
+  updateJunoLFOModulation();
+  
   // Update glide/portamento
   updateGlide();
   
   // Update Braids filter envelope (dynamic filter sweeps)
   updateBraidsFilterEnvelope();
+  
+  // Juno filter envelope handled automatically via audio connections
   
   // Minimal serial input check for performance
   if (Serial.available()) {

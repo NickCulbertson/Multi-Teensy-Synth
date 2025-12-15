@@ -84,7 +84,7 @@ def help_message():
 	print("  --auto      Automatically include all .syx files in current directory")
 	print()
 	print("Examples:")
-	print("  " + progname + " --decode --auto > ../dx7_rom1a_unpacked.h")
+	print("  " + progname + " --decode --auto > ../dx7_roms_unpacked.h")
 	print("  " + progname + " --decode ROM1A.syx ROM1B.syx > dx7_banks.h")
 	print("  " + progname + " ROM1A.syx > dx7_packed.h")
 	print()
@@ -137,7 +137,7 @@ if auto_scan or default_mode or len(sys.argv) == 0:
 	
 	# If default mode, redirect output to header file
 	if default_mode:
-		output_file = "../dx7_rom1a_unpacked.h"
+		output_file = "../dx7_roms_unpacked.h"
 		print(f"// Auto-mode: Processing {len(syx_files)} files and writing to {output_file}", file=sys.stderr)
 		print(f"// Found: {', '.join(syx_files)}", file=sys.stderr)
 		sys.stdout = open(output_file, 'w')

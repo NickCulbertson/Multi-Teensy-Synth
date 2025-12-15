@@ -14,7 +14,7 @@
 // Parameter Configuration
 #define NUM_PARAMETERS 41
 #define NUM_VA_PARAMETERS 39
-#define NUM_JUNO_PARAMETERS 39
+#define NUM_JUNO_PARAMETERS 21  // Juno-specific parameters (individual volumes + LFO + filter + envelopes)
 #define NUM_BRAIDS_PARAMETERS 17  // Braids-specific parameters (added filter ADSR + volume)
 
 // Display Configuration (choose one)

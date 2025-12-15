@@ -5,8 +5,9 @@
 ## How to Add DX7 Banks (3 Easy Steps)
 
 1. **Drop .syx files here** - Copy your DX7 bank files (.syx) into this `sysex/` directory
-2. **Run the script** - Execute: `python3 sysex2c.py`  
-3. **Done!** - Your synth now has all the banks with automatic menu navigation
+2. **cd into sysex folder**
+3. **Run the script** - Execute: `python3 sysex2c.py`  
+4. **Done!** - Your synth now has all the banks with automatic menu navigation
 
 That's it! The script automatically:
 - ✅ Finds all .syx files in the directory

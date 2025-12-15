@@ -1,6 +1,6 @@
 #include "config.h"
 #include "MenuNavigation.h"
-#include "dx7_rom1a_unpacked.h"  // For NUM_DX7_BANKS definition
+#include "dx7_roms_unpacked.h"
 #include <Encoder.h>
 #include <Audio.h>
 
@@ -42,17 +42,99 @@ void displayText(String line1, String line2) {
 #endif
 }
 
+// External variable access for synthesis parameters
+extern float allParameterValues[41];
+extern const char* controlNames[41];
+extern const char* waveformNames[6];
+extern const char* rangeNames[6];
+
+// External menu state variables
+extern bool inMenu;
+extern bool inParentMenu;
+extern ParentMenuState currentParentMenu;
+extern MenuState currentMenuState;
+extern int menuIndex;
+extern EngineType currentEngine;
+extern bool inPresetBrowse;
+extern int presetBrowseIndex;
+extern int junoPresetBrowseIndex;
+extern int dx7BrowseIndex;
+extern int engineBrowseIndex;
+
+// External synthesis variables
+extern bool macroMode;
+extern int midiChannel;
+extern bool lfoEnabled;
+extern int lfoTarget;
+extern int playMode;
+extern float glideTime;
+extern int noiseType;
+extern bool chorusBypass;
+extern bool reverbBypass;
+extern float chorusRate;
+extern float chorusDepth;
+extern float reverbSize;
+extern float reverbHidamp;
+
+// VOICES now defined in config.h
+
+// External encoder arrays and variables
+extern long encoderValues[20];
+extern long lastEncoderValues[20];
+
+// External encoder objects
+extern Encoder enc1, enc2, enc3, enc4, enc5;
+extern Encoder enc6, enc7, enc8, enc9, enc10;
+extern Encoder enc11, enc13, enc14, enc15, enc16;
+extern Encoder enc17, enc18, enc19, enc20;
+
+// External voice structure
+struct Voice {
+  bool active;
+  int note;
+  // Add other voice fields as needed
+};
+extern Voice voices[6];  // Matches VOICES = 6 from main file
+
+// External DX7 bank data
+extern unsigned char progmem_bank[][32][156];   // Size determined by sysex2c.py
+
+int getParameterIndex(MenuState state) {
+  // Handle global/settings parameters first (engine-independent)
+  if (state == MIDI_CHANNEL) {
+    return getVAParameterIndex(state); // Settings use VA parameter indices
+  }
+  
+  // Handle effects parameters
+  if (currentParentMenu == PARENT_EFFECTS) {
+    return getEffectsParameterIndex(state);
+  }
+  
+  // Engine-specific parameter dispatcher
+  switch(currentEngine) {
+    case ENGINE_VA:
+      return getVAParameterIndex(state);
+    case ENGINE_BRAIDS:
+      return getBraidsParameterIndex(state);
+    case ENGINE_DX7:
+      return getDX7ParameterIndex(state);
+    case ENGINE_JUNO:
+      return getJunoParameterIndex(state);
+    default:
+      return -1;
+  }
+}
+
 void updateParameterFromMenu(int paramIndex, float val) {
-  // Handle Braids parameters separately
-  if (paramIndex >= 100 && paramIndex <= 116) {
-    int braidsParamIndex = paramIndex - 100; // Convert to 0-16 range
-    updateBraidsParameter(braidsParamIndex, val);
+  // Handle engine-specific parameters
+  if (currentEngine == ENGINE_BRAIDS && paramIndex >= 0) {
+    updateBraidsParameter(paramIndex, val);
     return;
   }
   
-  // Apply Juno-60 parameter mapping first if needed
-  if (currentEngine == ENGINE_JUNO) {
-    applyJunoParameterMapping();
+  if (currentEngine == ENGINE_JUNO && paramIndex >= 0) {
+    updateJunoParameter(paramIndex, val);
+    return;
   }
   
   // Update the synthesis parameter
@@ -111,130 +193,6 @@ void updateParameterFromMenu(int paramIndex, float val) {
     }
     
     displayText(line1, line2);
-  }
-}
-
-// External variable access for synthesis parameters
-extern float allParameterValues[41];
-extern const char* controlNames[41];
-extern const char* waveformNames[6];
-extern const char* rangeNames[6];
-
-// External menu state variables
-extern bool inMenu;
-extern bool inParentMenu;
-extern ParentMenuState currentParentMenu;
-extern MenuState currentMenuState;
-extern int menuIndex;
-extern EngineType currentEngine;
-extern bool inPresetBrowse;
-extern int presetBrowseIndex;
-extern int junoPresetBrowseIndex;
-extern int dx7BrowseIndex;
-extern int engineBrowseIndex;
-
-// External synthesis variables
-extern bool macroMode;
-extern int midiChannel;
-extern bool lfoEnabled;
-extern int lfoTarget;
-extern int playMode;
-extern float glideTime;
-extern int noiseType;
-extern bool chorusBypass;
-extern bool reverbBypass;
-extern float chorusRate;
-extern float chorusDepth;
-extern float reverbSize;
-extern float reverbHidamp;
-
-// VOICES now defined in config.h
-
-// External encoder arrays and variables
-extern long encoderValues[20];
-extern long lastEncoderValues[20];
-
-// External encoder objects
-extern Encoder enc1, enc2, enc3, enc4, enc5;
-extern Encoder enc6, enc7, enc8, enc9, enc10;
-extern Encoder enc11, enc13, enc14, enc15, enc16;
-extern Encoder enc17, enc18, enc19, enc20;
-
-// External voice structure
-struct Voice {
-  bool active;
-  int note;
-  // Add other voice fields as needed
-};
-extern Voice voices[6];  // Matches VOICES = 6 from main file
-
-// Removed incorrect waveform constants - now using correct ones from synth_waveform.h
-
-
-// External DX7 bank data
-extern unsigned char progmem_bank[][32][156];   // Size determined by sysex2c.py
-
-int getParameterIndex(MenuState state) {
-  switch(state) {
-    case OSC1_RANGE: return 0;
-    case OSC2_RANGE: return 1;
-    case OSC3_RANGE: return 2;
-    case OSC2_FINE: return 3;
-    case OSC3_FINE: return 4;
-    case OSC1_WAVE: return 5;
-    case OSC2_WAVE: return 6;
-    case OSC3_WAVE: return 7;
-    case OSC1_VOLUME: return 8;
-    case OSC2_VOLUME: return 9;
-    case OSC3_VOLUME: return 10;
-    case CUTOFF: return 11;
-    case RESONANCE: return 12;
-    case FILTER_ATTACK: return 13;
-    case FILTER_DECAY: return 14;
-    case FILTER_SUSTAIN: return 15;
-    case NOISE_VOLUME: return 16;
-    case AMP_ATTACK: return 17;
-    case AMP_SUSTAIN: return 18;
-    case AMP_DECAY: return 19;
-    case OSC1_FINE: return 20;  // New menu-only parameter
-    case FILTER_STRENGTH: return 21;  // New menu-only parameter
-    case LFO_RATE: return 22;
-    case LFO_DEPTH: return 23;
-    case LFO_TOGGLE: return 24;
-    case LFO_TARGET: return 25;
-    case PLAY_MODE: return 26;
-    case GLIDE_TIME: return 27;
-    case NOISE_TYPE: return 28;
-    case MACRO_KNOBS: return 29;
-    case MIDI_CHANNEL: return 30;
-    case CHORUS_BYPASS: return 31;
-    case CHORUS_RATE: return 32;
-    case CHORUS_DEPTH: return 33;
-    case REVERB_BYPASS: return 34;
-    case REVERB_SIZE: return 35;
-    case REVERB_HIDAMP: return 36;
-    case REVERB_LODAMP: return 37;
-    case REVERB_LOWPASS: return 38;
-    case REVERB_DIFFUSION: return 39;
-    // Braids parameters - use custom parameter system
-    case BRAIDS_SHAPE: return 100;  // Custom indices for Braids
-    case BRAIDS_TIMBRE: return 101;
-    case BRAIDS_COLOR: return 102;
-    case BRAIDS_COARSE: return 103;
-    case BRAIDS_AMP_ATTACK: return 104;
-    case BRAIDS_AMP_DECAY: return 105;
-    case BRAIDS_AMP_SUSTAIN: return 106;
-    case BRAIDS_AMP_RELEASE: return 107;
-    case BRAIDS_FILTER_MODE: return 108;
-    case BRAIDS_FILTER_CUTOFF: return 109;
-    case BRAIDS_FILTER_RESONANCE: return 110;
-    case BRAIDS_FILTER_STRENGTH: return 111;
-    case BRAIDS_FILTER_ATTACK: return 112;
-    case BRAIDS_FILTER_DECAY: return 113;
-    case BRAIDS_FILTER_SUSTAIN: return 114;
-    case BRAIDS_FILTER_RELEASE: return 115;
-    case BRAIDS_VOLUME: return 116;
-    default: return -1;
   }
 }
 
@@ -416,54 +374,29 @@ int getMiniTeensyWaveform(float val, int osc) {
 void navigateMenuForward() {
   switch(currentMenuState) {
     case PARAMETERS:
-      if (currentEngine == ENGINE_VA) {
-        // VA parameter navigation
-        if (menuIndex == 0) currentMenuState = OSC_1;
-        else if (menuIndex == 1) currentMenuState = OSC_2;
-        else if (menuIndex == 2) currentMenuState = OSC_3;
-        else if (menuIndex == 3) currentMenuState = NOISE;
-        else if (menuIndex == 4) currentMenuState = ENVELOPES;
-        else if (menuIndex == 5) currentMenuState = FILTER;
-        else if (menuIndex == 6) currentMenuState = LFO;
-        else if (menuIndex == 7) currentMenuState = VOICE_MODE;
-        else if (menuIndex == 8) {
-          // Back to parent menu
-          enterParentMenuLevel();
-          currentParentMenu = PARENT_PARAMETERS; // Ensure we're positioned on Parameters
-          return;
-        }
-      } else if (currentEngine == ENGINE_BRAIDS) {
-        // Braids parameter navigation
-        if (menuIndex == 0) currentMenuState = BRAIDS_SHAPE;
-        else if (menuIndex == 1) currentMenuState = BRAIDS_TIMBRE;
-        else if (menuIndex == 2) currentMenuState = BRAIDS_COLOR;
-        else if (menuIndex == 3) currentMenuState = BRAIDS_COARSE;
-        else if (menuIndex == 4) currentMenuState = BRAIDS_AMP_ATTACK;
-        else if (menuIndex == 5) currentMenuState = BRAIDS_AMP_DECAY;
-        else if (menuIndex == 6) currentMenuState = BRAIDS_AMP_SUSTAIN;
-        else if (menuIndex == 7) currentMenuState = BRAIDS_AMP_RELEASE;
-        else if (menuIndex == 8) currentMenuState = BRAIDS_FILTER_MODE;
-        else if (menuIndex == 9) currentMenuState = BRAIDS_FILTER_CUTOFF;
-        else if (menuIndex == 10) currentMenuState = BRAIDS_FILTER_RESONANCE;
-        else if (menuIndex == 11) currentMenuState = BRAIDS_FILTER_STRENGTH;
-        else if (menuIndex == 12) currentMenuState = BRAIDS_FILTER_ATTACK;
-        else if (menuIndex == 13) currentMenuState = BRAIDS_FILTER_DECAY;
-        else if (menuIndex == 14) currentMenuState = BRAIDS_FILTER_SUSTAIN;
-        else if (menuIndex == 15) currentMenuState = BRAIDS_FILTER_RELEASE;
-        else if (menuIndex == 16) currentMenuState = BRAIDS_VOLUME;
-        else if (menuIndex == 17) {
-          // Back to parent menu
-          enterParentMenuLevel();
-          currentParentMenu = PARENT_PARAMETERS; // Ensure we're positioned on Parameters
-          return;
-        }
-      } else {
-        // Default/other engines - just go back
-        enterParentMenuLevel();
-        currentParentMenu = PARENT_PARAMETERS;
-        return;
+      // Delegate to engine-specific navigation
+      switch(currentEngine) {
+        case ENGINE_VA:
+          navigateVAParameterMenu(menuIndex);
+          break;
+        case ENGINE_BRAIDS:
+          navigateBraidsParameterMenu(menuIndex);
+          break;
+        case ENGINE_DX7:
+          // DX7 parameter navigation - minimal for now
+          if (menuIndex == 0) {
+            enterParentMenuLevel();
+            currentParentMenu = PARENT_PARAMETERS;
+          }
+          break;
+        case ENGINE_JUNO:
+          navigateJunoParameterMenu(menuIndex);
+          break;
       }
-      menuIndex = 0; // Reset index for sub-menu
+      // Only reset menuIndex if we didn't go back to parent
+      if (currentMenuState != PARAMETERS) {
+        menuIndex = 0; // Reset index for sub-menu
+      }
       break;
     case OSC_1:
       if (menuIndex == 0) currentMenuState = OSC1_RANGE;
@@ -576,11 +509,11 @@ void navigateMenuForward() {
       }
       break;
     case SETTINGS:
-      if (menuIndex == 0) currentMenuState = MACRO_KNOBS;
-      else if (menuIndex == 1) currentMenuState = MIDI_CHANNEL;
-      else if (menuIndex == 2) {
-        currentMenuState = PARENT_MENU;
-        menuIndex = 9;
+      if (menuIndex == 0) currentMenuState = MIDI_CHANNEL;
+      else if (menuIndex == 1) {
+        // Back to parent menu
+        enterParentMenuLevel();
+        currentParentMenu = PARENT_SETTINGS; // Ensure we're positioned on Settings
         return;
       }
       break;
@@ -630,13 +563,7 @@ void incrementMenuIndex() {
       break;
     case PARAMETERS:
       menuIndex++;
-      if (currentEngine == ENGINE_VA) {
-        if (menuIndex > 8) menuIndex = 0; // VA has 9 items (0-8) including Back
-      } else if (currentEngine == ENGINE_BRAIDS) {
-        if (menuIndex > 17) menuIndex = 0; // Braids has 18 items (0-17) including Back
-      } else {
-        if (menuIndex > 8) menuIndex = 0; // Default for other engines
-      }
+      if (menuIndex > getEngineParameterMenuCount()) menuIndex = 0;
       break;
     case EFFECTS:
       menuIndex++;
@@ -644,7 +571,10 @@ void incrementMenuIndex() {
       break;
     case SETTINGS:
       menuIndex++;
-      if (menuIndex > 2) menuIndex = 0; // Settings has 3 items (0-2) including Back
+      if (menuIndex > 1) menuIndex = 0; // Settings has 2 items (0-1) including Back
+      break;
+    case MACRO_KNOBS:
+      // MACRO_KNOBS doesn't use menuIndex - encoder directly toggles mode
       break;
     default:
       // In a parameter menu, no navigation
@@ -692,13 +622,7 @@ void decrementMenuIndex() {
       break;
     case PARAMETERS:
       menuIndex--;
-      if (currentEngine == ENGINE_VA) {
-        if (menuIndex < 0) menuIndex = 8; // Wrap to Back button (0-8)
-      } else if (currentEngine == ENGINE_BRAIDS) {
-        if (menuIndex < 0) menuIndex = 17; // Wrap to Back button (0-17)
-      } else {
-        if (menuIndex < 0) menuIndex = 8; // Default for other engines
-      }
+      if (menuIndex < 0) menuIndex = getEngineParameterMenuCount();
       break;
     case EFFECTS:
       menuIndex--;
@@ -706,7 +630,10 @@ void decrementMenuIndex() {
       break;
     case SETTINGS:
       menuIndex--;
-      if (menuIndex < 0) menuIndex = 2; // Wrap to Back button (0-2)
+      if (menuIndex < 0) menuIndex = 1; // Wrap to Back button (0-1)
+      break;
+    case MACRO_KNOBS:
+      // MACRO_KNOBS doesn't use menuIndex - encoder directly toggles mode
       break;
     default:
       // In a parameter menu, no navigation
@@ -755,6 +682,8 @@ void backMenuAction() {
       // Already at top level
       break;
     case PARAMETERS:
+      // Print current preset values for debugging/preset creation when leaving parameters menu
+      printCurrentPresetValues();
       exitParentMenuLevel(); // Go back to parent level (engines, presets, etc.)
       break;
     case OSC_1:
@@ -969,6 +898,91 @@ void backMenuAction() {
       currentMenuState = PARAMETERS;
       menuIndex = 16; // Volume is at index 16
       break;
+    // Juno parameter cases
+    case JUNO_PWM_VOLUME:
+      currentMenuState = PARAMETERS;
+      menuIndex = 0; // PWM Volume is at index 0
+      break;
+    case JUNO_PWM_WIDTH:
+      currentMenuState = PARAMETERS;
+      menuIndex = 1; // PWM Width is at index 1
+      break;
+    case JUNO_SAW_VOLUME:
+      currentMenuState = PARAMETERS;
+      menuIndex = 2; // Saw Volume is at index 2
+      break;
+    case JUNO_SUB_VOLUME:
+      currentMenuState = PARAMETERS;
+      menuIndex = 3; // Sub Volume is at index 3
+      break;
+    case JUNO_NOISE_VOLUME:
+      currentMenuState = PARAMETERS;
+      menuIndex = 4; // Noise Volume is at index 4
+      break;
+    case JUNO_LFO_RATE:
+      currentMenuState = PARAMETERS;
+      menuIndex = 5; // LFO Rate is at index 5
+      break;
+    case JUNO_LFO_DELAY:
+      currentMenuState = PARAMETERS;
+      menuIndex = 6; // LFO Delay is at index 6
+      break;
+    case JUNO_LFO_TARGET:
+      currentMenuState = PARAMETERS;
+      menuIndex = 7; // LFO Target is at index 7
+      break;
+    case JUNO_LFO_DEPTH:
+      currentMenuState = PARAMETERS;
+      menuIndex = 8; // LFO Depth is at index 8
+      break;
+    case JUNO_HPF_CUTOFF:
+      currentMenuState = PARAMETERS;
+      menuIndex = 9; // HPF Cutoff is at index 9 (shifted from 8)
+      break;
+    case JUNO_LPF_CUTOFF:
+      currentMenuState = PARAMETERS;
+      menuIndex = 10; // LPF Cutoff is at index 10 (shifted from 9)
+      break;
+    case JUNO_LPF_RESONANCE:
+      currentMenuState = PARAMETERS;
+      menuIndex = 11; // LPF Resonance is at index 11 (shifted from 10)
+      break;
+    case JUNO_FILTER_ENV:
+      currentMenuState = PARAMETERS;
+      menuIndex = 12; // Filter Env is at index 12 (shifted from 11)
+      break;
+    case JUNO_FILTER_ATTACK:
+      currentMenuState = PARAMETERS;
+      menuIndex = 13; // Filter Attack is at index 13 (shifted from 12)
+      break;
+    case JUNO_FILTER_DECAY:
+      currentMenuState = PARAMETERS;
+      menuIndex = 14; // Filter Decay is at index 14 (shifted from 13)
+      break;
+    case JUNO_FILTER_SUSTAIN:
+      currentMenuState = PARAMETERS;
+      menuIndex = 15; // Filter Sustain is at index 15 (shifted from 14)
+      break;
+    case JUNO_FILTER_RELEASE:
+      currentMenuState = PARAMETERS;
+      menuIndex = 16; // Filter Release is at index 16 (shifted from 15)
+      break;
+    case JUNO_AMP_ATTACK:
+      currentMenuState = PARAMETERS;
+      menuIndex = 17; // Amp Attack is at index 17 (shifted from 16)
+      break;
+    case JUNO_AMP_DECAY:
+      currentMenuState = PARAMETERS;
+      menuIndex = 18; // Amp Decay is at index 18 (shifted from 17)
+      break;
+    case JUNO_AMP_SUSTAIN:
+      currentMenuState = PARAMETERS;
+      menuIndex = 19; // Amp Sustain is at index 19 (shifted from 18)
+      break;
+    case JUNO_AMP_RELEASE:
+      currentMenuState = PARAMETERS;
+      menuIndex = 20; // Amp Release is at index 20 (shifted from 19)
+      break;
   }
 }
 
@@ -984,7 +998,6 @@ void handleParentMenu(int direction) {
 }
 
 void handleEngineMenu(int direction) {
-  // Only browse, don't auto-switch
   if (direction > 0) {
     engineBrowseIndex = (engineBrowseIndex + 1) % 5; // 4 engines + 1 "Back" option
   } else {
@@ -992,8 +1005,6 @@ void handleEngineMenu(int direction) {
   }
   updateDisplay();
 }
-
-// DX7 preset menu removed - now using bank/patch system
 
 void enterParentMenuLevel() {
   inMenu = true;
@@ -1088,28 +1099,14 @@ void handleEncoder() {
         // In parameter menus - use existing system for VA, simple for DX7
         if (currentEngine == ENGINE_VA) {
           // Use existing parameter system
-          if (getParameterIndex(currentMenuState) >= 0) {
-            // On a parameter - adjust value
+          if (currentMenuState == MACRO_KNOBS) {
+            // Special handling for MACRO_KNOBS - encoder toggles mode
+            macroMode = !macroMode;
+            updateDisplay();
+          } else if (getParameterIndex(currentMenuState) >= 0) {
+            // On a parameter - adjust value using helper function
             int paramIndex = getParameterIndex(currentMenuState);
-            if (direction > 0) {
-              if (paramIndex == 24) allParameterValues[paramIndex] = constrain(allParameterValues[paramIndex] + 0.5, 0.0, 1.0);
-              else if (paramIndex == 25) allParameterValues[paramIndex] = constrain(allParameterValues[paramIndex] + 0.03, 0.0, 1.0);
-              else if (paramIndex == 26) allParameterValues[paramIndex] = constrain(allParameterValues[paramIndex] + 0.05, 0.0, 1.0);
-              else if (paramIndex == 28) allParameterValues[paramIndex] = constrain(allParameterValues[paramIndex] + 0.5, 0.0, 1.0);
-              else if (paramIndex == 29) allParameterValues[paramIndex] = constrain(allParameterValues[paramIndex] + 0.5, 0.0, 1.0);
-              else if (paramIndex == 30) allParameterValues[paramIndex] = constrain(allParameterValues[paramIndex] + (1.0/16.0), 0.0, 1.0);
-              else allParameterValues[paramIndex] = constrain(allParameterValues[paramIndex] + 1.0/128.0, 0.0, 1.0);
-              updateParameterFromMenu(paramIndex, allParameterValues[paramIndex]);
-            } else {
-              if (paramIndex == 24) allParameterValues[paramIndex] = constrain(allParameterValues[paramIndex] - 0.5, 0.0, 1.0);
-              else if (paramIndex == 25) allParameterValues[paramIndex] = constrain(allParameterValues[paramIndex] - 0.03, 0.0, 1.0);
-              else if (paramIndex == 26) allParameterValues[paramIndex] = constrain(allParameterValues[paramIndex] - 0.05, 0.0, 1.0);
-              else if (paramIndex == 28) allParameterValues[paramIndex] = constrain(allParameterValues[paramIndex] - 0.5, 0.0, 1.0);
-              else if (paramIndex == 29) allParameterValues[paramIndex] = constrain(allParameterValues[paramIndex] - 0.5, 0.0, 1.0);
-              else if (paramIndex == 30) allParameterValues[paramIndex] = constrain(allParameterValues[paramIndex] - (1.0/16.0), 0.0, 1.0);
-              else allParameterValues[paramIndex] = constrain(allParameterValues[paramIndex] - 1.0/128.0, 0.0, 1.0);
-              updateParameterFromMenu(paramIndex, allParameterValues[paramIndex]);
-            }
+            adjustVAParameter(paramIndex, direction);
             updateDisplay();
           } else {
             // Navigate through VA menu structure
@@ -1120,34 +1117,25 @@ void handleEncoder() {
         } else if (currentEngine == ENGINE_BRAIDS) {
           // Braids parameter navigation
           if (getParameterIndex(currentMenuState) >= 0) {
-            // On a Braids parameter - adjust value
+            // On a Braids parameter - adjust value using helper function
             int paramIndex = getParameterIndex(currentMenuState);
-            int braidsParamIndex = paramIndex - 100; // Convert to 0-16 range
-            
-            if (direction > 0) {
-              // Increase parameter value
-              if (braidsParamIndex == 0) { // Shape - discrete 43 steps (0-42, QPSK is the last)
-                braidsParameters[braidsParamIndex] = constrain(braidsParameters[braidsParamIndex] + 1, 0, 42);
-              } else if (braidsParamIndex == 8) { // Filter mode - discrete 4 modes
-                braidsParameters[braidsParamIndex] = constrain(braidsParameters[braidsParamIndex] + 1, 0, 3);
-              } else {
-                // Other parameters - smooth adjustment
-                braidsParameters[braidsParamIndex] = constrain(braidsParameters[braidsParamIndex] + 1, 0, 127);
-              }
-            } else {
-              // Decrease parameter value
-              if (braidsParamIndex == 0) { // Shape
-                braidsParameters[braidsParamIndex] = constrain(braidsParameters[braidsParamIndex] - 1, 0, 42);
-              } else if (braidsParamIndex == 8) { // Filter mode
-                braidsParameters[braidsParamIndex] = constrain(braidsParameters[braidsParamIndex] - 1, 0, 3);
-              } else {
-                braidsParameters[braidsParamIndex] = constrain(braidsParameters[braidsParamIndex] - 1, 0, 127);
-              }
-            }
-            updateBraidsParameter(braidsParamIndex, braidsParameters[braidsParamIndex]);
+            adjustBraidsParameter(paramIndex, direction);
             updateDisplay();
           } else {
             // Navigate through Braids parameter menu structure
+            if (direction > 0) incrementMenuIndex();
+            else decrementMenuIndex();
+            updateDisplay();
+          }
+        } else if (currentEngine == ENGINE_JUNO) {
+          // Juno parameter navigation
+          if (getParameterIndex(currentMenuState) >= 0) {
+            // On a Juno parameter - adjust value using helper function
+            int paramIndex = getParameterIndex(currentMenuState);
+            adjustJunoParameter(paramIndex, direction);
+            updateDisplay();
+          } else {
+            // Navigate through Juno parameter menu structure
             if (direction > 0) incrementMenuIndex();
             else decrementMenuIndex();
             updateDisplay();
@@ -1163,7 +1151,7 @@ void handleEncoder() {
           } else {
             updateEncoderParameter(paramIndex, -1);
           }
-          updateParameterFromMenu(paramIndex, allParameterValues[paramIndex]);
+          updateParameterFromMenu(paramIndex, allParameterValues[paramIndex]);  
           updateDisplay();
         } else {
           if (direction > 0) incrementMenuIndex();
@@ -1206,14 +1194,14 @@ void handleEncoder() {
   bool currentButtonState = digitalRead(MENU_ENCODER_SW);
   
   // Debug: Print button state occasionally
-  static unsigned long lastButtonDebug = 0;
-  if (millis() - lastButtonDebug > 1000) {
-    Serial.print("Button pin ");
-    Serial.print(MENU_ENCODER_SW);
-    Serial.print(" reads: ");
-    Serial.println(currentButtonState);
-    lastButtonDebug = millis();
-  }
+  // static unsigned long lastButtonDebug = 0;
+  // if (millis() - lastButtonDebug > 1000) {
+  //   Serial.print("Button pin ");
+  //   Serial.print(MENU_ENCODER_SW);
+  //   Serial.print(" reads: ");
+  //   Serial.println(currentButtonState);
+  //   lastButtonDebug = millis();
+  // }
   
   if (currentButtonState == LOW && lastButtonState == HIGH) {
     Serial.println("Button clicked!");
@@ -1328,10 +1316,12 @@ void handleEncoder() {
       } else if (currentParentMenu == PARENT_PARAMETERS) {
         if (currentEngine == ENGINE_VA) {
           // VA parameter navigation
-          if (getParameterIndex(currentMenuState) >= 0) {
+          if (currentMenuState == MACRO_KNOBS) {
+            // Any button press in MACRO_KNOBS menu goes back to PARAMETERS
+            currentMenuState = PARAMETERS;
+            menuIndex = 8; // Return to MACRO_KNOBS option in PARAMETERS
+          } else if (getParameterIndex(currentMenuState) >= 0) {
             backMenuAction();
-          } else if (currentMenuState == MACRO_KNOBS) {
-            macroMode = !macroMode;
           } else {
             // Check if we're in a submenu with "< Back" option
             bool isBackButtonSelected = false;
@@ -1349,7 +1339,7 @@ void handleEncoder() {
             if (isBackButtonSelected) {
               // "< Back" option selected
               backMenuAction();
-            } else if (currentMenuState == PARAMETERS && menuIndex == 8) {
+            } else if (currentMenuState == PARAMETERS && menuIndex == getEngineParameterMenuCount()) {
               // "< Back" from main Parameters menu
               enterParentMenuLevel();
             } else {
@@ -1362,11 +1352,25 @@ void handleEncoder() {
           if (getParameterIndex(currentMenuState) >= 0) {
             // On a parameter, go back to menu
             backMenuAction();
-          } else if (currentMenuState == PARAMETERS && menuIndex == 17) {
-            // "< Back" from main Parameters menu for Braids (17 params + back = index 17)
+          } else if (currentMenuState == PARAMETERS && menuIndex == getEngineParameterMenuCount()) {
+            // "< Back" from main Parameters menu
             enterParentMenuLevel();
           } else {
             // Navigate forward in Braids parameter menu
+            navigateMenuForward();
+          }
+        } else if (currentEngine == ENGINE_JUNO) {
+          // Juno parameter navigation
+          if (getParameterIndex(currentMenuState) >= 0) {
+            // On a parameter, go back to menu
+            backMenuAction();
+          } else if (currentMenuState == PARAMETERS && menuIndex == getEngineParameterMenuCount()) {
+            // "< Back" from main Parameters menu
+            // Print current preset values for debugging/preset creation when leaving parameters menu
+            printCurrentPresetValues();
+            enterParentMenuLevel();
+          } else {
+            // Navigate forward in Juno parameter menu
             navigateMenuForward();
           }
         }
@@ -1573,7 +1577,8 @@ void updateDisplay() {
               else if (menuIndex == 5) line2 = "Filter";
               else if (menuIndex == 6) line2 = "LFO";
               else if (menuIndex == 7) line2 = "Voice Mode";
-              else if (menuIndex == 8) line2 = "< Back";
+              else if (menuIndex == 8) line2 = "Macro Knobs";
+              else if (menuIndex == 9) line2 = "< Back";
               displayText(line1, line2);
               break;
               
@@ -1671,9 +1676,8 @@ void updateDisplay() {
           
         case SETTINGS:
           line1 = "Settings";
-          if (menuIndex == 0) line2 = "Macro Knobs";
-          else if (menuIndex == 1) line2 = "MIDI Channel";
-          else if (menuIndex == 2) line2 = "< Back";
+          if (menuIndex == 0) line2 = "MIDI Channel";
+          else if (menuIndex == 1) line2 = "< Back";
           displayText(line1, line2);
           break;
           
@@ -1818,27 +1822,107 @@ void updateDisplay() {
               // Parameter editing for Braids
               int paramIndex = getParameterIndex(currentMenuState);
               if (paramIndex >= 0) {
-                int braidsParamIndex = paramIndex - 100; // Convert to 0-16 range
-                line1 = braidsControlNames[braidsParamIndex];
+                // paramIndex is already 0-16 from getBraidsParameterIndex()
+                line1 = braidsControlNames[paramIndex];
                 
                 // Braids-specific value displays
-                if (braidsParamIndex == 0) { // Shape
-                  int shape = (int)braidsParameters[braidsParamIndex];
+                if (paramIndex == 0) { // Shape
+                  int shape = (int)braidsParameters[paramIndex];
                   if (shape >= 0 && shape <= 42) {
                     line2 = braidsAlgorithmNames[shape];
                   } else {
                     line2 = "Shape " + String(shape);
                   }
-                } else if (braidsParamIndex == 8) { // Filter Mode
-                  int mode = (int)braidsParameters[braidsParamIndex];
+                } else if (paramIndex == 8) { // Filter Mode
+                  int mode = (int)braidsParameters[paramIndex];
                   if (mode == 0) line2 = "Off";
                   else if (mode == 1) line2 = "LowPass";
                   else if (mode == 2) line2 = "BandPass";
                   else line2 = "HighPass";
                 } else {
                   // Show 0-127 values for other parameters
-                  int displayValue = (int)braidsParameters[braidsParamIndex];
+                  int displayValue = (int)braidsParameters[paramIndex];
                   line2 = String(displayValue);
+                }
+                displayText(line1, line2);
+              }
+              break;
+          }
+        } else if (currentEngine == ENGINE_JUNO) {
+          // Juno parameters display system
+          switch(currentMenuState) {
+            case PARAMETERS:
+              line1 = "Juno-60 Params";
+              if (menuIndex == 0) line2 = "PWM Volume";
+              else if (menuIndex == 1) line2 = "PWM Width";
+              else if (menuIndex == 2) line2 = "Saw Volume";
+              else if (menuIndex == 3) line2 = "Sub Volume";
+              else if (menuIndex == 4) line2 = "Noise Volume";
+              else if (menuIndex == 5) line2 = "LFO Rate";
+              else if (menuIndex == 6) line2 = "LFO Delay";
+              else if (menuIndex == 7) line2 = "LFO Target";
+              else if (menuIndex == 8) line2 = "LFO Depth";
+              else if (menuIndex == 9) line2 = "HPF Cutoff";
+              else if (menuIndex == 10) line2 = "LPF Cutoff";
+              else if (menuIndex == 11) line2 = "LPF Res";
+              else if (menuIndex == 12) line2 = "Filter Env";
+              else if (menuIndex == 13) line2 = "Flt Attack";
+              else if (menuIndex == 14) line2 = "Flt Decay";
+              else if (menuIndex == 15) line2 = "Flt Sustain";
+              else if (menuIndex == 16) line2 = "Flt Release";
+              else if (menuIndex == 17) line2 = "Amp Attack";
+              else if (menuIndex == 18) line2 = "Amp Decay";
+              else if (menuIndex == 19) line2 = "Amp Sustain";
+              else if (menuIndex == 20) line2 = "Amp Release";
+              else if (menuIndex == 21) line2 = "< Back";
+              displayText(line1, line2);
+              break;
+              
+            default:
+              // Parameter editing for Juno
+              int paramIndex = getParameterIndex(currentMenuState);
+              if (paramIndex >= 0) {
+                line1 = junoControlNames[paramIndex];
+                
+                // Juno-specific parameter displays to match VA engine style
+                if (paramIndex == 0 || paramIndex == 2 || paramIndex == 3 || paramIndex == 4) {
+                  // Volume parameters -> 0-127 like VA synth
+                  int displayValue = (int)(junoParameters[paramIndex] * 127);
+                  line2 = String(displayValue);
+                } else if (paramIndex == 1) { // PWM Width
+                  int widthPercent = (int)(junoParameters[1] * 100);
+                  line2 = String(widthPercent) + "%";
+                } else if (paramIndex == 5) { // LFO Rate
+                  float rate = 0.1 + junoParameters[5] * 9.9; // 0.1Hz to 10Hz
+                  line2 = String(rate, 1) + " Hz";
+                } else if (paramIndex == 6) { // LFO Delay
+                  float delayMs = junoParameters[6] * 3000.0; // 0ms to 3000ms
+                  line2 = String((int)delayMs) + "ms";
+                } else if (paramIndex == 7) { // LFO Target
+                  float target = junoParameters[7];
+                  if (target < 0.2) line2 = "Off";
+                  else if (target < 0.5) line2 = "PWM";
+                  else if (target < 0.8) line2 = "Pitch";
+                  else line2 = "Filter";
+                } else if (paramIndex == 8) { // LFO Depth
+                  int displayValue = (int)(junoParameters[8] * 127);
+                  line2 = String(displayValue);
+                } else if (paramIndex == 9 || paramIndex == 10) { // HPF/LPF Cutoff (shifted from 8/9 to 9/10)
+                  float freq = (paramIndex == 9) ? 
+                    50.0 + (junoParameters[9] * 1950.0) : // HPF: 50Hz-2kHz
+                    20 * pow(1000.0, junoParameters[10]); // LPF: 20Hz-20kHz (logarithmic)
+                  if (freq < 1000) {
+                    line2 = String((int)freq) + " Hz";
+                  } else {
+                    line2 = String(freq/1000.0, 1) + " kHz";
+                  }
+                } else if (paramIndex == 11) { // Resonance (shifted from 10 to 11)
+                  float resonance = junoParameters[11] * 3.0;
+                  line2 = String(resonance, 1);
+                } else {
+                  // All other parameters -> 0-100%
+                  int displayValue = (int)(junoParameters[paramIndex] * 100);
+                  line2 = String(displayValue) + "%";
                 }
                 displayText(line1, line2);
               }
@@ -1953,3 +2037,381 @@ void updateDisplay() {
     displayText(line1, line2);
   }
 }
+
+// ================================================================================================
+// ENGINE-SPECIFIC FUNCTIONS
+// ================================================================================================
+// This section contains all engine-specific functions grouped by engine.
+// When adding a new engine, follow this pattern and add functions in each section.
+
+// ------------------------------------------------------------------------------------------------
+// VA (ANALOG) ENGINE FUNCTIONS
+// ------------------------------------------------------------------------------------------------
+
+int getVAParameterIndex(MenuState state) {
+  switch(state) {
+    case OSC1_RANGE: return 0;
+    case OSC2_RANGE: return 1;
+    case OSC3_RANGE: return 2;
+    case OSC2_FINE: return 3;
+    case OSC3_FINE: return 4;
+    case OSC1_WAVE: return 5;
+    case OSC2_WAVE: return 6;
+    case OSC3_WAVE: return 7;
+    case OSC1_VOLUME: return 8;
+    case OSC2_VOLUME: return 9;
+    case OSC3_VOLUME: return 10;
+    case CUTOFF: return 11;
+    case RESONANCE: return 12;
+    case FILTER_ATTACK: return 13;
+    case FILTER_DECAY: return 14;
+    case FILTER_SUSTAIN: return 15;
+    case NOISE_VOLUME: return 16;
+    case AMP_ATTACK: return 17;
+    case AMP_SUSTAIN: return 18;
+    case AMP_DECAY: return 19;
+    case OSC1_FINE: return 20;
+    case FILTER_STRENGTH: return 21;
+    case LFO_RATE: return 22;
+    case LFO_DEPTH: return 23;
+    case LFO_TOGGLE: return 24;
+    case LFO_TARGET: return 25;
+    case PLAY_MODE: return 26;
+    case GLIDE_TIME: return 27;
+    case NOISE_TYPE: return 28;
+    case MACRO_KNOBS: return 29;
+    case MIDI_CHANNEL: return 30;
+    default: return -1;
+  }
+}
+
+void navigateVAParameterMenu(int menuIndex) {
+  if (menuIndex == 0) currentMenuState = OSC_1;
+  else if (menuIndex == 1) currentMenuState = OSC_2;
+  else if (menuIndex == 2) currentMenuState = OSC_3;
+  else if (menuIndex == 3) currentMenuState = NOISE;
+  else if (menuIndex == 4) currentMenuState = ENVELOPES;
+  else if (menuIndex == 5) currentMenuState = FILTER;
+  else if (menuIndex == 6) currentMenuState = LFO;
+  else if (menuIndex == 7) currentMenuState = VOICE_MODE;
+  else if (menuIndex == 8) currentMenuState = MACRO_KNOBS;
+  else if (menuIndex == 9) {
+    // Back to parent menu
+    enterParentMenuLevel();
+    currentParentMenu = PARENT_PARAMETERS;
+  }
+}
+
+void adjustVAParameter(int paramIndex, int direction) {
+  if (direction > 0) {
+    if (paramIndex == 24) allParameterValues[paramIndex] = constrain(allParameterValues[paramIndex] + 0.5, 0.0, 1.0);
+    else if (paramIndex == 25) allParameterValues[paramIndex] = constrain(allParameterValues[paramIndex] + 0.03, 0.0, 1.0);
+    else if (paramIndex == 26) allParameterValues[paramIndex] = constrain(allParameterValues[paramIndex] + 0.05, 0.0, 1.0);
+    else if (paramIndex == 28) allParameterValues[paramIndex] = constrain(allParameterValues[paramIndex] + 0.5, 0.0, 1.0);
+    else if (paramIndex == 29) allParameterValues[paramIndex] = constrain(allParameterValues[paramIndex] + 0.5, 0.0, 1.0);
+    else if (paramIndex == 30) allParameterValues[paramIndex] = constrain(allParameterValues[paramIndex] + (1.0/16.0), 0.0, 1.0);
+    else allParameterValues[paramIndex] = constrain(allParameterValues[paramIndex] + 1.0/128.0, 0.0, 1.0);
+  } else {
+    if (paramIndex == 24) allParameterValues[paramIndex] = constrain(allParameterValues[paramIndex] - 0.5, 0.0, 1.0);
+    else if (paramIndex == 25) allParameterValues[paramIndex] = constrain(allParameterValues[paramIndex] - 0.03, 0.0, 1.0);
+    else if (paramIndex == 26) allParameterValues[paramIndex] = constrain(allParameterValues[paramIndex] - 0.05, 0.0, 1.0);
+    else if (paramIndex == 28) allParameterValues[paramIndex] = constrain(allParameterValues[paramIndex] - 0.5, 0.0, 1.0);
+    else if (paramIndex == 29) allParameterValues[paramIndex] = constrain(allParameterValues[paramIndex] - 0.5, 0.0, 1.0);
+    else if (paramIndex == 30) allParameterValues[paramIndex] = constrain(allParameterValues[paramIndex] - (1.0/16.0), 0.0, 1.0);
+    else allParameterValues[paramIndex] = constrain(allParameterValues[paramIndex] - 1.0/128.0, 0.0, 1.0);
+  }
+  updateParameterFromMenu(paramIndex, allParameterValues[paramIndex]);
+}
+
+// ------------------------------------------------------------------------------------------------
+// BRAIDS (MACRO-OSCILLATOR) ENGINE FUNCTIONS  
+// ------------------------------------------------------------------------------------------------
+
+int getBraidsParameterIndex(MenuState state) {
+  switch(state) {
+    case BRAIDS_SHAPE: return 0;
+    case BRAIDS_TIMBRE: return 1;
+    case BRAIDS_COLOR: return 2;
+    case BRAIDS_COARSE: return 3;
+    case BRAIDS_AMP_ATTACK: return 4;
+    case BRAIDS_AMP_DECAY: return 5;
+    case BRAIDS_AMP_SUSTAIN: return 6;
+    case BRAIDS_AMP_RELEASE: return 7;
+    case BRAIDS_FILTER_MODE: return 8;
+    case BRAIDS_FILTER_CUTOFF: return 9;
+    case BRAIDS_FILTER_RESONANCE: return 10;
+    case BRAIDS_FILTER_STRENGTH: return 11;
+    case BRAIDS_FILTER_ATTACK: return 12;
+    case BRAIDS_FILTER_DECAY: return 13;
+    case BRAIDS_FILTER_SUSTAIN: return 14;
+    case BRAIDS_FILTER_RELEASE: return 15;
+    case BRAIDS_VOLUME: return 16;
+    default: return -1;
+  }
+}
+
+void navigateBraidsParameterMenu(int menuIndex) {
+  if (menuIndex == 0) currentMenuState = BRAIDS_SHAPE;
+  else if (menuIndex == 1) currentMenuState = BRAIDS_TIMBRE;
+  else if (menuIndex == 2) currentMenuState = BRAIDS_COLOR;
+  else if (menuIndex == 3) currentMenuState = BRAIDS_COARSE;
+  else if (menuIndex == 4) currentMenuState = BRAIDS_AMP_ATTACK;
+  else if (menuIndex == 5) currentMenuState = BRAIDS_AMP_DECAY;
+  else if (menuIndex == 6) currentMenuState = BRAIDS_AMP_SUSTAIN;
+  else if (menuIndex == 7) currentMenuState = BRAIDS_AMP_RELEASE;
+  else if (menuIndex == 8) currentMenuState = BRAIDS_FILTER_MODE;
+  else if (menuIndex == 9) currentMenuState = BRAIDS_FILTER_CUTOFF;
+  else if (menuIndex == 10) currentMenuState = BRAIDS_FILTER_RESONANCE;
+  else if (menuIndex == 11) currentMenuState = BRAIDS_FILTER_STRENGTH;
+  else if (menuIndex == 12) currentMenuState = BRAIDS_FILTER_ATTACK;
+  else if (menuIndex == 13) currentMenuState = BRAIDS_FILTER_DECAY;
+  else if (menuIndex == 14) currentMenuState = BRAIDS_FILTER_SUSTAIN;
+  else if (menuIndex == 15) currentMenuState = BRAIDS_FILTER_RELEASE;
+  else if (menuIndex == 16) currentMenuState = BRAIDS_VOLUME;
+  else if (menuIndex == 17) {
+    // Back to parent menu
+    enterParentMenuLevel();
+    currentParentMenu = PARENT_PARAMETERS;
+  }
+}
+
+void adjustBraidsParameter(int paramIndex, int direction) {
+  // paramIndex is now 0-16 directly (no conversion needed)
+  if (direction > 0) {
+    // Increase parameter value
+    if (paramIndex == 0) { // Shape - discrete 43 steps (0-42, QPSK is the last)
+      braidsParameters[paramIndex] = constrain(braidsParameters[paramIndex] + 1, 0, 42);
+    } else if (paramIndex == 8) { // Filter mode - discrete 4 modes
+      braidsParameters[paramIndex] = constrain(braidsParameters[paramIndex] + 1, 0, 3);
+    } else {
+      // Other parameters - smooth adjustment
+      braidsParameters[paramIndex] = constrain(braidsParameters[paramIndex] + 1, 0, 127);
+    }
+  } else {
+    // Decrease parameter value
+    if (paramIndex == 0) { // Shape
+      braidsParameters[paramIndex] = constrain(braidsParameters[paramIndex] - 1, 0, 42);
+    } else if (paramIndex == 8) { // Filter mode
+      braidsParameters[paramIndex] = constrain(braidsParameters[paramIndex] - 1, 0, 3);
+    } else {
+      braidsParameters[paramIndex] = constrain(braidsParameters[paramIndex] - 1, 0, 127);
+    }
+  }
+  updateBraidsParameter(paramIndex, braidsParameters[paramIndex]);
+}
+
+// ------------------------------------------------------------------------------------------------
+// DX7 (FM SYNTHESIS) ENGINE FUNCTIONS
+// ------------------------------------------------------------------------------------------------
+
+int getDX7ParameterIndex(MenuState state) {
+  // DX7 doesn't currently have editable parameters in menu system
+  // When DX7 parameter editing is added, implement here
+  // Example: case DX7_ALGORITHM: return 0;
+  return -1;
+}
+
+// void navigateDX7ParameterMenu(int menuIndex) {
+//   // TODO: Implement DX7 parameter navigation when DX7 editing is added
+//   // Follow the same pattern as VA and Braids engines above
+// }
+
+// void adjustDX7Parameter(int paramIndex, int direction) {
+//   // TODO: Implement DX7 parameter adjustment when DX7 editing is added  
+//   // Follow the same pattern as VA and Braids engines above
+// }
+
+// ------------------------------------------------------------------------------------------------
+// JUNO-60 ENGINE FUNCTIONS
+// ------------------------------------------------------------------------------------------------
+
+int getJunoParameterIndex(MenuState state) {
+  switch(state) {
+    case JUNO_PWM_VOLUME: return 0;
+    case JUNO_PWM_WIDTH: return 1;
+    case JUNO_SAW_VOLUME: return 2;
+    case JUNO_SUB_VOLUME: return 3;
+    case JUNO_NOISE_VOLUME: return 4;
+    case JUNO_LFO_RATE: return 5;
+    case JUNO_LFO_DELAY: return 6;
+    case JUNO_LFO_TARGET: return 7;
+    case JUNO_LFO_DEPTH: return 8;
+    case JUNO_HPF_CUTOFF: return 9;
+    case JUNO_LPF_CUTOFF: return 10;
+    case JUNO_LPF_RESONANCE: return 11;
+    case JUNO_FILTER_ENV: return 12;
+    case JUNO_FILTER_ATTACK: return 13;
+    case JUNO_FILTER_DECAY: return 14;
+    case JUNO_FILTER_SUSTAIN: return 15;
+    case JUNO_FILTER_RELEASE: return 16;
+    case JUNO_AMP_ATTACK: return 17;
+    case JUNO_AMP_DECAY: return 18;
+    case JUNO_AMP_SUSTAIN: return 19;
+    case JUNO_AMP_RELEASE: return 20;
+    default: return -1;
+  }
+}
+
+void navigateJunoParameterMenu(int menuIndex) {
+  if (menuIndex == 0) currentMenuState = JUNO_PWM_VOLUME;
+  else if (menuIndex == 1) currentMenuState = JUNO_PWM_WIDTH;
+  else if (menuIndex == 2) currentMenuState = JUNO_SAW_VOLUME;
+  else if (menuIndex == 3) currentMenuState = JUNO_SUB_VOLUME;
+  else if (menuIndex == 4) currentMenuState = JUNO_NOISE_VOLUME;
+  else if (menuIndex == 5) currentMenuState = JUNO_LFO_RATE;
+  else if (menuIndex == 6) currentMenuState = JUNO_LFO_DELAY;
+  else if (menuIndex == 7) currentMenuState = JUNO_LFO_TARGET;
+  else if (menuIndex == 8) currentMenuState = JUNO_LFO_DEPTH;
+  else if (menuIndex == 9) currentMenuState = JUNO_HPF_CUTOFF;
+  else if (menuIndex == 10) currentMenuState = JUNO_LPF_CUTOFF;
+  else if (menuIndex == 11) currentMenuState = JUNO_LPF_RESONANCE;
+  else if (menuIndex == 12) currentMenuState = JUNO_FILTER_ENV;
+  else if (menuIndex == 13) currentMenuState = JUNO_FILTER_ATTACK;
+  else if (menuIndex == 14) currentMenuState = JUNO_FILTER_DECAY;
+  else if (menuIndex == 15) currentMenuState = JUNO_FILTER_SUSTAIN;
+  else if (menuIndex == 16) currentMenuState = JUNO_FILTER_RELEASE;
+  else if (menuIndex == 17) currentMenuState = JUNO_AMP_ATTACK;
+  else if (menuIndex == 18) currentMenuState = JUNO_AMP_DECAY;
+  else if (menuIndex == 19) currentMenuState = JUNO_AMP_SUSTAIN;
+  else if (menuIndex == 20) currentMenuState = JUNO_AMP_RELEASE;
+  else if (menuIndex == 21) {
+    // Back to parent menu
+    enterParentMenuLevel();
+  }
+}
+
+void adjustJunoParameter(int paramIndex, int direction) {
+  if (paramIndex < 0 || paramIndex >= NUM_JUNO_PARAMETERS) return;
+  
+  float increment = 1.0/128.0; // Default fine increment
+  
+  // Custom increments for different Juno parameter types
+  if (paramIndex == 0 || paramIndex == 2 || paramIndex == 3 || paramIndex == 4) {
+    increment = 1.0/127.0; // Volume parameters (0-127 range)
+  } else if (paramIndex == 5) { // LFO Rate
+    increment = 1.0/100.0; // Medium speed for LFO rate
+  } else if (paramIndex == 6) { // LFO Delay
+    increment = 1.0/60.0; // 60 steps for delay (50ms steps)
+  } else if (paramIndex == 7) { // LFO Target 
+    increment = 0.25; // 4 discrete values (Off, PWM, Pitch, Filter)
+  } else if (paramIndex == 8) { // LFO Depth
+    increment = 1.0/127.0; // Fine control for depth (0-127 range)
+  } else if (paramIndex == 9 || paramIndex == 10) { // Filter cutoffs
+    increment = 1.0/100.0; // Medium speed for filters
+  } else if (paramIndex >= 13 && paramIndex <= 20) { // Envelope parameters (shifted by 1)
+    increment = 1.0/200.0; // Finer control for envelopes
+  }
+  
+  if (direction > 0) {
+    junoParameters[paramIndex] = constrain(junoParameters[paramIndex] + increment, 0.0, 1.0);
+  } else {
+    junoParameters[paramIndex] = constrain(junoParameters[paramIndex] - increment, 0.0, 1.0);
+  }
+  updateJunoParameter(paramIndex, junoParameters[paramIndex]);
+}
+
+// ------------------------------------------------------------------------------------------------
+// EFFECTS FUNCTIONS (SHARED)
+// ------------------------------------------------------------------------------------------------
+
+int getEffectsParameterIndex(MenuState state) {
+  switch(state) {
+    case CHORUS_BYPASS: return 31;
+    case CHORUS_RATE: return 32;
+    case CHORUS_DEPTH: return 33;
+    case REVERB_BYPASS: return 34;
+    case REVERB_SIZE: return 35;
+    case REVERB_HIDAMP: return 36;
+    case REVERB_LODAMP: return 37;
+    case REVERB_LOWPASS: return 38;
+    case REVERB_DIFFUSION: return 39;
+    default: return -1;
+  }
+}
+
+// ------------------------------------------------------------------------------------------------
+// ENGINE UTILITIES (SHARED)
+// ------------------------------------------------------------------------------------------------
+
+int getEngineParameterMenuCount() {
+  switch(currentEngine) {
+    case ENGINE_VA: return 9;     // VA has 10 items (0-9) including Back
+    case ENGINE_BRAIDS: return 17; // Braids has 18 items (0-17) including Back  
+    case ENGINE_DX7: return 0;    // DX7 has minimal parameters for now
+    case ENGINE_JUNO: return 21;  // Juno has 22 items (0-21) including Back
+    default: return 9;
+  }
+}
+
+// ================================================================================================
+// PRESET DEBUGGING FUNCTIONS
+// ================================================================================================
+
+void printCurrentPresetValues() {
+  Serial.println("=== Current Preset Values ===");
+  
+  if (currentEngine == ENGINE_VA) {
+    Serial.println("VA Engine Parameters:");
+    Serial.print("{ ");
+    for (int i = 0; i < NUM_PARAMETERS; i++) {
+      Serial.print(allParameterValues[i], 3);
+      if (i < NUM_PARAMETERS - 1) Serial.print(", ");
+      if ((i + 1) % 8 == 0) Serial.println(); // Line break every 8 values
+    }
+    Serial.println(" }");
+    
+  } else if (currentEngine == ENGINE_JUNO) {
+    Serial.println("Juno Engine Parameters:");
+    Serial.print("{ ");
+    
+    // Print native Juno parameters (21 parameters)
+    for (int i = 0; i < NUM_JUNO_PARAMETERS; i++) {
+      Serial.print(junoParameters[i], 3);
+      if (i < NUM_JUNO_PARAMETERS - 1) Serial.print(", ");
+      if ((i + 1) % 6 == 0) Serial.println(); // Line break every 6 values
+    }
+    Serial.println(" }");
+    
+    Serial.println("Native Juno 21-parameter format.");
+    
+  } else if (currentEngine == ENGINE_BRAIDS) {
+    Serial.println("Braids Engine Parameters (including effects):");
+    Serial.print("{ ");
+    
+    // Print Braids-specific parameters (0-16)
+    for (int i = 0; i < NUM_BRAIDS_PARAMETERS; i++) {
+      Serial.print(braidsParameters[i], 3);
+      Serial.print(", ");
+      if ((i + 1) % 6 == 0) Serial.println(); // Line break every 6 values
+    }
+    
+    // Print effects parameters (31-40 from allParameterValues)
+    for (int i = 31; i < NUM_PARAMETERS; i++) {
+      Serial.print(allParameterValues[i], 3);
+      if (i < NUM_PARAMETERS - 1) Serial.print(", ");
+      if ((i - 30) % 5 == 0) Serial.println(); // Line break every 5 values
+    }
+    Serial.println(" }");
+    
+    Serial.println("Parameter mapping:");
+    Serial.println("0-16: Braids parameters, 17-26: Effects parameters");
+    
+  } else if (currentEngine == ENGINE_DX7) {
+    Serial.println("DX7 Engine Parameters:");
+    Serial.println("DX7 uses SysEx data - no direct parameter array to print");
+  }
+  
+  Serial.println("=============================");
+}
+
+// ================================================================================================
+// TO ADD A NEW ENGINE:
+// 1. Add new engine type to config.h EngineType enum
+// 2. Create getXXXParameterIndex(MenuState state) function above
+// 3. Create navigateXXXParameterMenu(int menuIndex) function above  
+// 4. Create adjustXXXParameter(int paramIndex, int direction) function above
+// 5. Add case to getEngineParameterMenuCount() function above
+// 6. Add case to main dispatchers in getParameterIndex(), navigateMenuForward(), handleEncoder()
+// 7. Add display logic for the new engine in updateDisplay()
+// 8. Add case to printCurrentPresetValues() function above
+// ================================================================================================
