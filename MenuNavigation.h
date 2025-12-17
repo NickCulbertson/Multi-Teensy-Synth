@@ -113,8 +113,9 @@ enum MenuState {
   JUNO_NOISE_VOLUME,
   JUNO_LFO_RATE,
   JUNO_LFO_DELAY,
-  JUNO_LFO_TARGET,
-  JUNO_LFO_DEPTH,
+  JUNO_LFO_PWM,
+  JUNO_LFO_PITCH,
+  JUNO_LFO_FILTER,
   JUNO_HPF_CUTOFF,
   JUNO_LPF_CUTOFF,
   JUNO_LPF_RESONANCE,
@@ -241,7 +242,7 @@ struct MiniTeensyPreset {
 
 struct JunoPreset {
   const char* name;
-  float parameters[21]; // Native Juno 21-parameter structure
+  float parameters[22]; // Native Juno 22-parameter structure (added 3 LFO amounts)
 };
 
 extern const MiniTeensyPreset presets[];

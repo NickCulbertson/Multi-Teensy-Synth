@@ -927,61 +927,65 @@ void backMenuAction() {
       currentMenuState = PARAMETERS;
       menuIndex = 6; // LFO Delay is at index 6
       break;
-    case JUNO_LFO_TARGET:
+    case JUNO_LFO_PWM:
       currentMenuState = PARAMETERS;
       menuIndex = 7; // LFO Target is at index 7
       break;
-    case JUNO_LFO_DEPTH:
+    case JUNO_LFO_PITCH:
       currentMenuState = PARAMETERS;
-      menuIndex = 8; // LFO Depth is at index 8
+      menuIndex = 8; // LFO Target is at index 7
+      break;
+    case JUNO_LFO_FILTER:
+      currentMenuState = PARAMETERS;
+      menuIndex = 9; // LFO Depth is at index 8
       break;
     case JUNO_HPF_CUTOFF:
       currentMenuState = PARAMETERS;
-      menuIndex = 9; // HPF Cutoff is at index 9 (shifted from 8)
+      menuIndex = 10; // HPF Cutoff is at index 9 (shifted from 8)
       break;
     case JUNO_LPF_CUTOFF:
       currentMenuState = PARAMETERS;
-      menuIndex = 10; // LPF Cutoff is at index 10 (shifted from 9)
+      menuIndex = 11; // LPF Cutoff is at index 10 (shifted from 9)
       break;
     case JUNO_LPF_RESONANCE:
       currentMenuState = PARAMETERS;
-      menuIndex = 11; // LPF Resonance is at index 11 (shifted from 10)
+      menuIndex = 12; // LPF Resonance is at index 11 (shifted from 10)
       break;
     case JUNO_FILTER_ENV:
       currentMenuState = PARAMETERS;
-      menuIndex = 12; // Filter Env is at index 12 (shifted from 11)
+      menuIndex = 13; // Filter Env is at index 12 (shifted from 11)
       break;
     case JUNO_FILTER_ATTACK:
       currentMenuState = PARAMETERS;
-      menuIndex = 13; // Filter Attack is at index 13 (shifted from 12)
+      menuIndex = 14; // Filter Attack is at index 13 (shifted from 12)
       break;
     case JUNO_FILTER_DECAY:
       currentMenuState = PARAMETERS;
-      menuIndex = 14; // Filter Decay is at index 14 (shifted from 13)
+      menuIndex = 15; // Filter Decay is at index 14 (shifted from 13)
       break;
     case JUNO_FILTER_SUSTAIN:
       currentMenuState = PARAMETERS;
-      menuIndex = 15; // Filter Sustain is at index 15 (shifted from 14)
+      menuIndex = 16; // Filter Sustain is at index 15 (shifted from 14)
       break;
     case JUNO_FILTER_RELEASE:
       currentMenuState = PARAMETERS;
-      menuIndex = 16; // Filter Release is at index 16 (shifted from 15)
+      menuIndex = 17; // Filter Release is at index 16 (shifted from 15)
       break;
     case JUNO_AMP_ATTACK:
       currentMenuState = PARAMETERS;
-      menuIndex = 17; // Amp Attack is at index 17 (shifted from 16)
+      menuIndex = 18; // Amp Attack is at index 17 (shifted from 16)
       break;
     case JUNO_AMP_DECAY:
       currentMenuState = PARAMETERS;
-      menuIndex = 18; // Amp Decay is at index 18 (shifted from 17)
+      menuIndex = 19; // Amp Decay is at index 18 (shifted from 17)
       break;
     case JUNO_AMP_SUSTAIN:
       currentMenuState = PARAMETERS;
-      menuIndex = 19; // Amp Sustain is at index 19 (shifted from 18)
+      menuIndex = 20; // Amp Sustain is at index 19 (shifted from 18)
       break;
     case JUNO_AMP_RELEASE:
       currentMenuState = PARAMETERS;
-      menuIndex = 20; // Amp Release is at index 20 (shifted from 19)
+      menuIndex = 21; // Amp Release is at index 20 (shifted from 19)
       break;
   }
 }
@@ -1860,21 +1864,22 @@ void updateDisplay() {
               else if (menuIndex == 4) line2 = "Noise Volume";
               else if (menuIndex == 5) line2 = "LFO Rate";
               else if (menuIndex == 6) line2 = "LFO Delay";
-              else if (menuIndex == 7) line2 = "LFO Target";
-              else if (menuIndex == 8) line2 = "LFO Depth";
-              else if (menuIndex == 9) line2 = "HPF Cutoff";
-              else if (menuIndex == 10) line2 = "LPF Cutoff";
-              else if (menuIndex == 11) line2 = "LPF Res";
-              else if (menuIndex == 12) line2 = "Filter Env";
-              else if (menuIndex == 13) line2 = "Flt Attack";
-              else if (menuIndex == 14) line2 = "Flt Decay";
-              else if (menuIndex == 15) line2 = "Flt Sustain";
-              else if (menuIndex == 16) line2 = "Flt Release";
-              else if (menuIndex == 17) line2 = "Amp Attack";
-              else if (menuIndex == 18) line2 = "Amp Decay";
-              else if (menuIndex == 19) line2 = "Amp Sustain";
-              else if (menuIndex == 20) line2 = "Amp Release";
-              else if (menuIndex == 21) line2 = "< Back";
+              else if (menuIndex == 7) line2 = "LFO>Pitch";
+              else if (menuIndex == 8) line2 = "LFO>PWM";
+              else if (menuIndex == 9) line2 = "LFO>Filter";
+              else if (menuIndex == 10) line2 = "HPF Cutoff";
+              else if (menuIndex == 11) line2 = "LPF Cutoff";
+              else if (menuIndex == 12) line2 = "LPF Res";
+              else if (menuIndex == 13) line2 = "Filter Env";
+              else if (menuIndex == 14) line2 = "Flt Attack";
+              else if (menuIndex == 15) line2 = "Flt Decay";
+              else if (menuIndex == 16) line2 = "Flt Sustain";
+              else if (menuIndex == 17) line2 = "Flt Release";
+              else if (menuIndex == 18) line2 = "Amp Attack";
+              else if (menuIndex == 19) line2 = "Amp Decay";
+              else if (menuIndex == 20) line2 = "Amp Sustain";
+              else if (menuIndex == 21) line2 = "Amp Release";
+              else if (menuIndex == 22) line2 = "< Back";
               displayText(line1, line2);
               break;
               
@@ -1893,31 +1898,31 @@ void updateDisplay() {
                   int widthPercent = (int)(junoParameters[1] * 100);
                   line2 = String(widthPercent) + "%";
                 } else if (paramIndex == 5) { // LFO Rate
-                  float rate = 0.1 + junoParameters[5] * 9.9; // 0.1Hz to 10Hz
+                  float rate = 0.1 + junoParameters[5] * 29.9; // 0.1Hz to 30Hz (authentic range)
                   line2 = String(rate, 1) + " Hz";
                 } else if (paramIndex == 6) { // LFO Delay
                   float delayMs = junoParameters[6] * 3000.0; // 0ms to 3000ms
                   line2 = String((int)delayMs) + "ms";
-                } else if (paramIndex == 7) { // LFO Target
-                  float target = junoParameters[7];
-                  if (target < 0.2) line2 = "Off";
-                  else if (target < 0.5) line2 = "PWM";
-                  else if (target < 0.8) line2 = "Pitch";
-                  else line2 = "Filter";
-                } else if (paramIndex == 8) { // LFO Depth
-                  int displayValue = (int)(junoParameters[8] * 127);
-                  line2 = String(displayValue);
-                } else if (paramIndex == 9 || paramIndex == 10) { // HPF/LPF Cutoff (shifted from 8/9 to 9/10)
-                  float freq = (paramIndex == 9) ? 
-                    50.0 + (junoParameters[9] * 1950.0) : // HPF: 50Hz-2kHz
-                    20 * pow(1000.0, junoParameters[10]); // LPF: 20Hz-20kHz (logarithmic)
+                } else if (paramIndex == 7) { // LFO to Pitch
+                  int displayValue = (int)(junoParameters[7] * 100);
+                  line2 = String(displayValue) + "%";
+                } else if (paramIndex == 8) { // LFO to PWM
+                  int displayValue = (int)(junoParameters[8] * 100);
+                  line2 = String(displayValue) + "%";
+                } else if (paramIndex == 9) { // LFO to Filter
+                  int displayValue = (int)(junoParameters[9] * 100);
+                  line2 = String(displayValue) + "%";
+                } else if (paramIndex == 10 || paramIndex == 11) { // HPF/LPF Cutoff (shifted from 9/10 to 10/11)
+                  float freq = (paramIndex == 10) ? 
+                    50.0 + (junoParameters[10] * 1950.0) : // HPF: 50Hz-2kHz
+                    20 * pow(1000.0, junoParameters[11]); // LPF: 20Hz-20kHz (logarithmic)
                   if (freq < 1000) {
                     line2 = String((int)freq) + " Hz";
                   } else {
                     line2 = String(freq/1000.0, 1) + " kHz";
                   }
-                } else if (paramIndex == 11) { // Resonance (shifted from 10 to 11)
-                  float resonance = junoParameters[11] * 3.0;
+                } else if (paramIndex == 12) { // Resonance (shifted from 11 to 12)
+                  float resonance = junoParameters[12] * 3.0;
                   line2 = String(resonance, 1);
                 } else {
                   // All other parameters -> 0-100%
@@ -2234,20 +2239,21 @@ int getJunoParameterIndex(MenuState state) {
     case JUNO_NOISE_VOLUME: return 4;
     case JUNO_LFO_RATE: return 5;
     case JUNO_LFO_DELAY: return 6;
-    case JUNO_LFO_TARGET: return 7;
-    case JUNO_LFO_DEPTH: return 8;
-    case JUNO_HPF_CUTOFF: return 9;
-    case JUNO_LPF_CUTOFF: return 10;
-    case JUNO_LPF_RESONANCE: return 11;
-    case JUNO_FILTER_ENV: return 12;
-    case JUNO_FILTER_ATTACK: return 13;
-    case JUNO_FILTER_DECAY: return 14;
-    case JUNO_FILTER_SUSTAIN: return 15;
-    case JUNO_FILTER_RELEASE: return 16;
-    case JUNO_AMP_ATTACK: return 17;
-    case JUNO_AMP_DECAY: return 18;
-    case JUNO_AMP_SUSTAIN: return 19;
-    case JUNO_AMP_RELEASE: return 20;
+    case JUNO_LFO_PWM: return 7;
+    case JUNO_LFO_PITCH: return 8;
+    case JUNO_LFO_FILTER: return 9;
+    case JUNO_HPF_CUTOFF: return 10;
+    case JUNO_LPF_CUTOFF: return 11;
+    case JUNO_LPF_RESONANCE: return 12;
+    case JUNO_FILTER_ENV: return 13;
+    case JUNO_FILTER_ATTACK: return 14;
+    case JUNO_FILTER_DECAY: return 15;
+    case JUNO_FILTER_SUSTAIN: return 16;
+    case JUNO_FILTER_RELEASE: return 17;
+    case JUNO_AMP_ATTACK: return 18;
+    case JUNO_AMP_DECAY: return 19;
+    case JUNO_AMP_SUSTAIN: return 20;
+    case JUNO_AMP_RELEASE: return 21;
     default: return -1;
   }
 }
@@ -2260,21 +2266,22 @@ void navigateJunoParameterMenu(int menuIndex) {
   else if (menuIndex == 4) currentMenuState = JUNO_NOISE_VOLUME;
   else if (menuIndex == 5) currentMenuState = JUNO_LFO_RATE;
   else if (menuIndex == 6) currentMenuState = JUNO_LFO_DELAY;
-  else if (menuIndex == 7) currentMenuState = JUNO_LFO_TARGET;
-  else if (menuIndex == 8) currentMenuState = JUNO_LFO_DEPTH;
-  else if (menuIndex == 9) currentMenuState = JUNO_HPF_CUTOFF;
-  else if (menuIndex == 10) currentMenuState = JUNO_LPF_CUTOFF;
-  else if (menuIndex == 11) currentMenuState = JUNO_LPF_RESONANCE;
-  else if (menuIndex == 12) currentMenuState = JUNO_FILTER_ENV;
-  else if (menuIndex == 13) currentMenuState = JUNO_FILTER_ATTACK;
-  else if (menuIndex == 14) currentMenuState = JUNO_FILTER_DECAY;
-  else if (menuIndex == 15) currentMenuState = JUNO_FILTER_SUSTAIN;
-  else if (menuIndex == 16) currentMenuState = JUNO_FILTER_RELEASE;
-  else if (menuIndex == 17) currentMenuState = JUNO_AMP_ATTACK;
-  else if (menuIndex == 18) currentMenuState = JUNO_AMP_DECAY;
-  else if (menuIndex == 19) currentMenuState = JUNO_AMP_SUSTAIN;
-  else if (menuIndex == 20) currentMenuState = JUNO_AMP_RELEASE;
-  else if (menuIndex == 21) {
+  else if (menuIndex == 7) currentMenuState = JUNO_LFO_PWM;
+  else if (menuIndex == 8) currentMenuState = JUNO_LFO_PITCH;
+  else if (menuIndex == 9) currentMenuState = JUNO_LFO_FILTER;
+  else if (menuIndex == 10) currentMenuState = JUNO_HPF_CUTOFF;
+  else if (menuIndex == 11) currentMenuState = JUNO_LPF_CUTOFF;
+  else if (menuIndex == 12) currentMenuState = JUNO_LPF_RESONANCE;
+  else if (menuIndex == 13) currentMenuState = JUNO_FILTER_ENV;
+  else if (menuIndex == 14) currentMenuState = JUNO_FILTER_ATTACK;
+  else if (menuIndex == 15) currentMenuState = JUNO_FILTER_DECAY;
+  else if (menuIndex == 16) currentMenuState = JUNO_FILTER_SUSTAIN;
+  else if (menuIndex == 17) currentMenuState = JUNO_FILTER_RELEASE;
+  else if (menuIndex == 18) currentMenuState = JUNO_AMP_ATTACK;
+  else if (menuIndex == 19) currentMenuState = JUNO_AMP_DECAY;
+  else if (menuIndex == 20) currentMenuState = JUNO_AMP_SUSTAIN;
+  else if (menuIndex == 21) currentMenuState = JUNO_AMP_RELEASE;
+  else if (menuIndex == 22) {
     // Back to parent menu
     enterParentMenuLevel();
   }
@@ -2292,13 +2299,11 @@ void adjustJunoParameter(int paramIndex, int direction) {
     increment = 1.0/100.0; // Medium speed for LFO rate
   } else if (paramIndex == 6) { // LFO Delay
     increment = 1.0/60.0; // 60 steps for delay (50ms steps)
-  } else if (paramIndex == 7) { // LFO Target 
-    increment = 0.25; // 4 discrete values (Off, PWM, Pitch, Filter)
-  } else if (paramIndex == 8) { // LFO Depth
-    increment = 1.0/127.0; // Fine control for depth (0-127 range)
-  } else if (paramIndex == 9 || paramIndex == 10) { // Filter cutoffs
+  } else if (paramIndex == 7 || paramIndex == 8 || paramIndex == 9) { // LFO Amounts (Pitch/PWM/Filter)
+    increment = 1.0/100.0; // Fine control for LFO amounts (0-100% range)
+  } else if (paramIndex == 10 || paramIndex == 11 || paramIndex == 12) { // HPF/LPF/Resonance (shifted indices)
     increment = 1.0/100.0; // Medium speed for filters
-  } else if (paramIndex >= 13 && paramIndex <= 20) { // Envelope parameters (shifted by 1)
+  } else if (paramIndex >= 13 && paramIndex <= 21) { // Envelope parameters (shifted indices)
     increment = 1.0/200.0; // Finer control for envelopes
   }
   
@@ -2338,7 +2343,7 @@ int getEngineParameterMenuCount() {
     case ENGINE_VA: return 9;     // VA has 10 items (0-9) including Back
     case ENGINE_BRAIDS: return 17; // Braids has 18 items (0-17) including Back  
     case ENGINE_DX7: return 0;    // DX7 has minimal parameters for now
-    case ENGINE_JUNO: return 21;  // Juno has 22 items (0-21) including Back
+    case ENGINE_JUNO: return 22;  // Juno has 22 items (0-22) including Back
     default: return 9;
   }
 }
@@ -2364,7 +2369,7 @@ void printCurrentPresetValues() {
     Serial.println("Juno Engine Parameters:");
     Serial.print("{ ");
     
-    // Print native Juno parameters (21 parameters)
+    // Print native Juno parameters (22 parameters)
     for (int i = 0; i < NUM_JUNO_PARAMETERS; i++) {
       Serial.print(junoParameters[i], 3);
       if (i < NUM_JUNO_PARAMETERS - 1) Serial.print(", ");
@@ -2372,7 +2377,7 @@ void printCurrentPresetValues() {
     }
     Serial.println(" }");
     
-    Serial.println("Native Juno 21-parameter format.");
+    Serial.println("Native Juno 22-parameter format.");
     
   } else if (currentEngine == ENGINE_BRAIDS) {
     Serial.println("Braids Engine Parameters (including effects):");

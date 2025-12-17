@@ -1,7 +1,6 @@
 
 //
-// File generated with sysex2c.py
-// Source files: ROM1A.syx, ROM1B.syx, ROM2A.syx, ROM2B.syx, ROM3A.syx, ROM3B.syx, ROM4A.syx, ROM4B.syx
+// File generated with sysex2c.pya
 //
 
 #pragma once
