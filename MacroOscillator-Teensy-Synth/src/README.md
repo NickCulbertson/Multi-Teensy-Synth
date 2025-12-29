@@ -1,5 +1,5 @@
-# AudioSynthBraids
-Braids port into an audio object for Teensy Audio library
+# AudioSynthMacroOscillator
+Macro oscillator synthesis engine (based on Braids) ported to Teensy Audio library
 
 It is NOT stable at some points and the audio quality needs to be enhanced.
 

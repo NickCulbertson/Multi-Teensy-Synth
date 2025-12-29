@@ -1,290 +1,277 @@
-# Multi-Teensy Synth
+# Multi-Teensy-Synth Collection (WIP)
 
-A **multi-engine polyphonic synthesizer** built with the Teensy 4.1 microcontroller featuring three classic synthesis engines: **Virtual Analog** (Minimoog-inspired), **Juno-60** (Roland-inspired), and **DX7 FM** (Yamaha-inspired).
+**🚧 WORK IN PROGRESS 🚧**  
+This project is very much under construction. More engines and proper attributions are being included. This is just a preview.
 
-*"Three Classic Synths in One | A Teensy Powered Multi-Engine Tribute"*
+A collection of **standalone polyphonic synthesizers** built with the Teensy 4.1 microcontroller, each featuring different synthesis engines and optimized for the Mini-Teensy hardware platform.
 
-## Key Features
-- **Three synthesis engines** - switch between VA, Juno-60, and DX7 FM
-- **6-voice polyphony** per engine
-- **Virtual Analog Engine**: 3 oscillators, Moog-style filter, ADSR envelopes
-- **Juno-60 Engine**: Roland character with chorus, high-pass filter, arpeggiator
-- **DX7 FM Engine**: 6-operator FM synthesis, 32 algorithms, classic 80s sounds
-- **Unified menu system** - single encoder controls all engines
-- **USB Audio + MIDI** - single cable to computer
-- **MIDI channel selection** - receive on specific channel or omni mode
-- **20 hardware encoders** + LCD for real-time control
-- **Multiple play modes** - Mono, Poly, Legato with glide
+**Built on open-source synthesis engines:** [MicroDexed Touch](https://codeberg.org/positionhigh/MicroDexed-touch), [Mutable Instruments Braids](https://github.com/pichenettes/eurorack), [MDA EPiano](https://sourceforge.net/projects/mda-vst/), and [MicroDexed](https://codeberg.org/dcoredump/MicroDexed). *See acknowledgements below for full attribution.*
 
-## Synthesis Engines
+## 🎹 Available Synthesizers
 
-### Virtual Analog (Minimoog-inspired)
-- **3 oscillators** with 6 waveforms each
-- **24dB Moog-style ladder filter** 
-- **Independent ADSR envelopes** for amp and filter
-- **LFO** with pitch/filter/amp targets
-- **Noise generator** (white/pink)
+### 1. Mini-Teensy-Synth
+**6-Voice Virtual Analog Synthesizer** (Minimoog-inspired)
+- 3 oscillators per voice with multiple waveforms
+- Ladder filter with resonance and envelope
+- LFO with multiple targets (pitch, filter, amplitude)
+- Comprehensive ADSR envelopes
+- Real-time parameter control via 19 encoders
+- 20 built-in presets + configurable encoder mapping
 
-### Juno-60 (Roland-inspired) 
-- **Modified VA engine** with Roland character
-- **High-pass filter** for that classic Juno sound
-- **Chorus effect** with variable depth
-- **Softer filter response** compared to Moog
-- **Arpeggiator** functionality
+### 2. EPiano-Teensy-Synth
+**16-Voice Electric Piano Synthesizer** (MDA EPiano engine)
+- Authentic electric piano sound modeling
+- 8 classic electric piano programs
+- Real-time parameter control (decay, release, hardness, treble, etc.)
+- Configurable encoder mapping for intuitive control
+- High-quality 16-bit audio output
 
-### DX7 FM (Yamaha-inspired)
-- **6-operator FM synthesis**
-- **32 classic algorithms** 
-- **Operator-level control** 
-- **LFO modulation**
-- **Classic 80s electric pianos, brass, bells**
+### 3. FM-Teensy-Synth
+**16-Voice FM Synthesizer** (DX7-compatible via Dexed engine)
+- Full DX7 compatibility with 6-operator FM synthesis
+- 8 ROM banks with 32 presets each (256 total classic DX7 sounds)
+- Real-time control of all 6 operator levels + algorithm, feedback, LFO
+- Bank/patch browsing system like original DX7
+- Authentic DX7 sound engine with multiple algorithms
 
-## Menu Navigation Structure
+### 4. DCO-Teensy-Synth
+**6-Voice DCO Synthesizer** (Juno-60 inspired)
+- PWM + Sawtooth oscillators with sub-oscillator
+- 24dB ladder filter + 12dB high-pass filter
+- Authentic BBD Chorus with stereo imaging
+- Independent LFO with multiple modulation targets
+- 6 classic Juno-style presets
 
-The synthesizer uses a **hierarchical menu system** accessible via the menu encoder and button. Press the menu button to enter the parent menu, then navigate to different sections:
+### 5. MacroOscillator-Teensy-Synth
+**6-Voice Digital Synthesizer** (Braids engine)
+- 40+ synthesis algorithms and models
+- Macro oscillator concepts with timbre control
+- Digital synthesis techniques from Eurorack
+- Real-time parameter morphing
+- Advanced synthesis algorithms
 
-### Parent Menu Structure
-```
-├── Engines
-│   └── VA / Juno / DX7 (engine selection)
-├── Presets  
-│   └── Preset Browser (per engine)
-├── Parameters
-│   ├── Oscillator 1 (Range, Wave, Volume, Fine, Back)
-│   ├── Oscillator 2 (Range, Wave, Volume, Fine, Back)  
-│   ├── Oscillator 3 (Range, Wave, Volume, Fine, Back)
-│   ├── Noise (Volume, Type, Back)
-│   ├── Envelopes (Filter ADSR, Amp ADSR, Filter Strength, Back)
-│   ├── Filter (Cutoff, Resonance, Back)
-│   ├── LFO (Rate, Depth, Toggle, Target, Back)
-│   └── Voice Mode (Play Mode, Glide Time, Back)
-├── Effects
-│   ├── Chorus Bypass (On/Off)
-│   ├── Chorus Rate (0-1 Hz)
-│   ├── Chorus Depth (0-100%)
-│   ├── Reverb Bypass (On/Off) 
-│   ├── Reverb Size (0-100%)
-│   ├── Reverb Hi Damp (0-100%)
-│   ├── Reverb Lo Damp (0-100%)
-│   ├── Reverb Lowpass (0-100%)
-│   └── Reverb Diffusion (0-100%)
-└── Settings
-    ├── Macro Knobs (Filter Env / LFO Controls)
-    └── MIDI Channel (0=Omni, 1-16)
-```
+## 🛠 Hardware Requirements
 
-### Navigation Controls
-- **Turn encoder**: Navigate through menu items
-- **Press button**: Enter selected submenu or exit to parent level
-- **Menu hierarchy**: Parent → Submenu → Parameter → Back to Submenu → Back to Parent
-- **Individual effects bypass**: Chorus and reverb can be enabled/disabled independently
-- **Real-time parameter updates**: All parameter changes are applied immediately
+### Required Components
+- **Teensy 4.1** microcontroller
+- **Mini-Teensy hardware** (19 rotary encoders + menu encoder)
+- **16x2 LCD** or **128x64 OLED** display
+- **USB connection** for MIDI and audio
 
-## Hardware Requirements
+### Optional Components
+- **DIN MIDI Input** circuit (6N138 optocoupler + 220Ω resistor + 5-pin DIN)
+- **USB MIDI Host** setup:
+  - USB OTG adapter cable or USB Host pins on Teensy 4.1
+  - USB MIDI controller (keyboard, pad controller, etc.)
+  - External 5V power supply if using high-power USB devices
 
-**Full Build:**
-- **Teensy 4.1** microcontroller  
-- **19x Rotary Encoders** + **1x Menu Encoder** with push button
-- **16x2 I2C LCD** display
-- Enclosure, knob caps, hookup wire
+## 📡 MIDI Configuration
 
-**Minimal Build:**
-- **Teensy 4.1** + **1x Menu Encoder** + **LCD**
-- USB cable for audio/MIDI output
-- All parameters accessible via menu system
+All projects support flexible MIDI input options:
 
-**Parts:**
-- Teensy 4.1 (https://www.sparkfun.com/teensy-4-1-without-ethernet.html)
-- Menu Encoder (https://www.amazon.com/Taiss-KY-040-Encoder-15×16-5-Arduino/dp/B07F26CT6B/ref=sr_1_3_pp)
-- Other Encoders (https://www.aliexpress.us/item/3256801237549169.html)
-- LCD 2X16 (https://www.amazon.com/Hosyond-Display-Module-Arduino-Raspberry/dp/B0BWTFN9WF/ref=sr_1_2)
-- Knobs (https://www.amazon.com/Taiss-Silver-Rotary-Potentiometer-Diameter/dp/B07F25NMJ7/ref=sr_1_5)
-
-## Wiring
-
-### **Minimal Build (LCD + 1 Encoder)**
-Perfect for testing or budget builds:
-```
-Menu Encoder: CLK→13, DT→14, SW→15
-LCD (I2C):   SDA→18, SCL→19, VCC→3.3V, GND→GND
-Power:       USB cable to computer
-```
-**That's it!** All synthesis parameters accessible through menu.
-
-### **Full Build (20 Encoders)**
-**Parameter Encoder Pins (configurable in code):**
-```
-Osc Ranges:  enc1(4,5), enc2(2,3), enc3(0,1)
-Osc Fine:    enc4(8,9), enc5(6,7)
-Osc Waves:   enc6(25,27), enc7(12,24), enc8(10,11)  
-Volumes:     enc9(29,30), enc10(28,26), enc11(21,20)
-Filter:      enc13(34,33), enc14(50,41), enc15(23,22), enc16(36,35)
-Noise Vol:   enc17(31,32)
-Amp Env:     enc18(17,16), enc19(38,37), enc20(40,39)
-```
-
-**Encoder Wiring:**
-- **CLK/DT pins** to Teensy as shown above
-- **All encoder GND pins** daisy-chained to Teensy GND
-- **Menu encoder VCC pin** to Teensy 3.3V (if encoder has a breakout board)
-
-### **Audio + MIDI Options**
-
-**Option 1: Computer DAW (Current Setup)**
-- Single USB cable provides audio output + MIDI input
-- Plug-and-play with DAWs
-
-**Option 2: Standalone with MIDI Keyboard**  
-For standalone use without computer:
-- Connect USB MIDI keyboard to **Teensy USB Host pins**
-- Requires USB Host cable
-- Audio output through computer USB (or modify code for I2S/line out)
-- **Note:** Requires code modification for USB Host MIDI instead of USB Device
-
-**Option 3: DIN MIDI Support (Hardware Modification)**
-Add traditional 5-pin DIN MIDI input for hardware compatibility:
-
-**Hardware Required:**
-- 6N138 optocoupler IC  
-- 220Ω resistor
-- 5-pin DIN MIDI connector
-- Standard MIDI interface circuit (see MIDI spec)
-
-**Wiring:**
-- Connect MIDI interface circuit output to **Teensy Serial1 (Pin 0)**
-- MIDI input circuit connects to DIN connector pins 4,5
-- **Important:** Pin 0 is currently used by enc3 (Osc3 Range). You'll need to move enc3's CLK wire from Pin 0 to one of the surface mount pins on the bottom of the Teensy 4.1 board (pins 42-47 are available)
-
-**Code Changes Required:**
 ```cpp
-// In Multi-Teensy-Synth.ino, uncomment this line:
-#define ENABLE_DIN_MIDI
-
-// That's it! The DIN MIDI support code is already included.
+// MIDI Configuration - Enable the MIDI sources you want to use
+#define USE_USB_DEVICE_MIDI // USB Device MIDI for DAW/computer connection (default)
+// #define USE_MIDI_HOST    // USB Host MIDI for external controllers connected to Teensy
+// #define ENABLE_DIN_MIDI  // Hardware DIN MIDI input (requires circuit)
 ```
 
-**Features:**
-- Supports both USB MIDI and DIN MIDI simultaneously
-- Selectable MIDI channel (1-16 or Omni) via Settings menu
-- Standard MIDI implementation (Note On/Off, CC, Pitch Bend)
+**Possible combinations:**
+1. **USB Device only** - Connect to computer/DAW via USB
+2. **USB Host only** - Connect MIDI controller directly to Teensy (standalone operation)  
+3. **Both USB modes** - Maximum flexibility, both DAW and controller simultaneously
+4. **DIN MIDI only** - Hardware MIDI input via 5-pin DIN connector
+5. **Any combination** - Mix and match as needed
 
-## Software Installation
+## 🎛 Encoder Mapping
 
-1. **Install Arduino IDE** 2.0+ from [arduino.cc](https://www.arduino.cc/en/software)
-2. **Add Teensy support:**
-   - **Modern IDE:** Tools → Board Manager → Search "Teensy" → Install
-   - **Fallback:** Download Teensyduino from [PJRC](https://www.pjrc.com/teensy/td_download.html)
-3. **Install libraries:** Tools → Manage Libraries → Install "LiquidCrystal I2C" and "Encoder" 
-   - **For DIN MIDI:** Also install "MIDI Library" by Francois Best 
-4. **Download this project** and open `Multi-Teensy-Synth.ino`
-5. **Configure:** Board→Teensy 4.1, USB Type→Audio+MIDI
-6. **Upload!** Your computer will show "Teensy Audio" device
+Each project features **configurable encoder mapping** via `config.h`:
 
-## Usage
+- **19 physical encoders** can be mapped to any synthesis parameter
+- **Menu encoder** can control a parameter or be menu-only
+- **Easy customization** - just change parameter numbers in config file
+- **Disabled encoders** - set to -1 to disable unused encoders
 
-**Engine Selection:** Main Menu → Engine Select → [VA | Juno-60 | DX7]
-
-**Menu Navigation:** Click encoder to navigate, turn to adjust values. All parameters accessible via hierarchical menu system.
-
-**MIDI Channel:** Settings → MIDI Channel sets which MIDI channel to receive (1-16, or Omni for all channels).
-
-**Menu Structure:**
-```
-Engine Select → [Virtual Analog | Juno-60 | DX7 FM]
-├── Engine Parameters (varies by selected engine)
-│   ├── VA: OSC 1-3 | Noise | Envelopes | Filter | LFO
-│   ├── Juno: OSC 1-3 | Chorus | HPF | Arp | Filter
-│   └── DX7: Operators 1-6 | Algorithm | Feedback | LFO
-└── Global Settings
-    ├── MIDI Channel
-    ├── Voice Mode
-    └── Macro Knobs
+Example configuration:
+```cpp
+#define ENC_1_PARAM    0   // Map encoder 1 to parameter 0
+#define ENC_2_PARAM    1   // Map encoder 2 to parameter 1  
+#define ENC_3_PARAM   -1   // Disable encoder 3
 ```
 
-## Adding DX7 SysEx Banks
+## 💾 Software Requirements
 
-**Ultra-simple 3-step process** - Add unlimited DX7 banks to your synth:
+### Arduino Libraries (install via Library Manager)
+- **LiquidCrystal I2C** (by Frank de Brabander) - for LCD display
+- **Adafruit SSD1306** (by Adafruit) - for OLED display
+- **Adafruit GFX Library** (by Adafruit) - for OLED display  
+- **Encoder** (by Paul Stoffregen)
+- **MIDI Library** (by Francois Best) - only needed if enabling DIN MIDI
 
-### Automatic Method (Recommended)
-1. **Drop .syx files** into the `sysex/` directory  
-2. **Run**: `cd sysex && python3 sysex2c.py`
-3. **Done!** All banks now available in Presets → Banks menu
+### Built-in Teensy Libraries (no installation needed)
+- Audio, Wire, USBHost_t36
 
-**That's it!** The script automatically:
-- ✅ Finds all .syx files in directory  
-- ✅ Converts to correct format with bank names
-- ✅ Updates header file with all banks
-- ✅ No manual code changes needed
+## 🚀 Getting Started
 
-### Where to Get DX7 Banks
-- **Classic**: ROM1A.syx, ROM1B.syx (original factory sounds)
-- **Community**: [dexed GitHub](https://github.com/asb2m10/dexed)  
-- **Online**: Search "DX7 sysex download"
+1. **Choose a synthesizer** from the three available options
+2. **Install required libraries** via Arduino Library Manager
+3. **Configure hardware** in `config.h`:
+   - Set display type (LCD or OLED)
+   - Configure MIDI sources
+   - Map encoders to desired parameters
+4. **Upload to Teensy 4.1**
+5. **Connect MIDI controller** and start playing!
 
-### Method 2: Cherry-Pick Individual Patches
-Use `extract_dx7_patches.py` to select specific patches from a bank:
+## 📋 Project Structure
 
-1. **Edit patch selection**: Modify the `popular_patches` list (line 141)
-2. **Run extractor**: `python3 extract_dx7_patches.py`  
-3. **Copy output**: Replace `dx7_selected_patches` array in your sketch
-
-### What sysex2c.py Does
-- ✅ **Validates sysex format**: Checks headers, checksums, and file structure
-- ✅ **Unpacks to 156-byte format**: Converts from DX7's packed format to synth-ready format
-- ✅ **Processes multiple banks**: Create one large 3D array with all your banks
-- ✅ **Extracts patch names**: Shows all patch names with comments
-- ✅ **Ready-to-use output**: Generates complete C header file
-
-### Example Workflow
-```bash
-# 1. Download some DX7 banks
-wget http://example.com/ROM1A.syx
-wget http://example.com/Lately_Bass.syx
-
-# 2. Convert to C array
-python3 sysex2c.py --decode ROM1A.syx Lately_Bass.syx > my_dx7_banks.h
-
-# 3. Output will be:
-# uint8_t progmem_bank[2][32][156] PROGMEM = {
-#   { // ROM1A.syx
-#     { // 1: BRASS 1
-#       99, 99, 99, 99, 0, 0, ...
-#     },
-#     ...
-#   },
-#   { // Lately_Bass.syx  
-#     ...
-#   }
-# };
+```
+Multi-Teensy-Synth/
+├── Mini-Teensy-Synth/          # Virtual Analog Synthesizer
+│   ├── Mini-Teensy-Synth.ino   # Main sketch
+│   ├── config.h                # Hardware & parameter mapping
+│   ├── MenuNavigation.cpp      # Menu system implementation
+│   └── README.md               # Detailed documentation
+├── EPiano-Teensy-Synth/        # Electric Piano Synthesizer  
+│   ├── EPiano-Teensy-Synth.ino # Main sketch
+│   ├── config.h                # Hardware & parameter mapping
+│   ├── MenuNavigation.cpp      # Menu system implementation
+│   ├── mdaEPiano.h/.cpp        # MDA EPiano sound engine
+│   └── README.md               # Detailed documentation
+├── FM-Teensy-Synth/            # FM Synthesizer
+│   ├── FM-Teensy-Synth.ino     # Main sketch
+│   ├── config.h                # Hardware & parameter mapping
+│   ├── MenuNavigation.cpp      # Menu system implementation
+│   ├── src/Synth_Dexed/        # DX7-compatible FM engine
+│   ├── dx7_roms_unpacked.h     # DX7 ROM preset data
+│   └── README.md               # Detailed documentation
+├── DCO-Teensy-Synth/           # DCO Synthesizer (Juno-inspired)
+│   ├── DCO-Teensy-Synth.ino    # Main sketch
+│   ├── config.h                # Hardware & parameter mapping
+│   ├── MenuNavigation.cpp      # Menu system implementation
+│   └── README.md               # Detailed documentation
+└── MacroOscillator-Teensy-Synth/ # Digital Macro Oscillator
+    ├── MacroOscillator-Teensy-Synth.ino # Main sketch
+    ├── config.h                # Hardware & parameter mapping
+    ├── MenuNavigation.cpp      # Menu system implementation
+    ├── src/                    # Braids engine source
+    └── README.md               # Detailed documentation
 ```
 
-### Popular DX7 Banks to Try
-- **Factory ROM1A/ROM1B**: Classic sounds (E.PIANO 1, BRASS 1, etc.)
-- **Brian Eno**: Ambient textures
-- **Lately Bass**: Classic bass sounds  
-- **TX7 Collections**: Thousands of user patches
-- **Film/Game Soundtracks**: Specific collections
+## 🎯 Features
 
-## Development Status
+- **Professional Audio Quality** - 16-bit/44.1kHz USB audio output
+- **Low Latency** - Optimized for real-time performance
+- **Polyphonic** - Multiple voices per synthesizer (6-16 depending on engine)
+- **MIDI Compatible** - Full MIDI support with multiple input options
+- **User Friendly** - Intuitive menu systems and configurable controls
+- **Standalone Operation** - No computer required with USB Host MIDI
+- **Expandable** - Easy to add new synthesis engines or modify existing ones
 
-**Current Version:** 1.0 Alpha
-- ✅ Multi-engine framework implemented
-- ✅ Virtual Analog engine (from Mini-Teensy-Synth)
-- 🔄 Juno-60 engine (in development)
-- 🔄 DX7 FM engine (in development) 
-- 🔄 Menu system integration (in development)
+## 🔊 Audio Output
 
-**Planned Features:**
-- Complete Juno-60 engine with chorus and arpeggiator
-- DX7 FM synthesis with MicroDexed integration
-- Preset system for all engines
-- Cross-engine modulation capabilities
+All synthesizers output high-quality audio via:
+- **USB Audio** - Connect to computer for recording/monitoring
+- **I2S Audio** - Connect to external DAC for standalone operation (hardware modification required)
 
-## Contributing
-Fork, test on hardware, submit PR. Open source project!
+## 🎵 Use Cases
 
-## Thanks
-- **PJRC** - Teensy platform and Audio Library
-- **MicroDexed Team** - DX7 FM synthesis engine
-- **Classic synth manufacturers** - Moog, Roland, Yamaha
-- **Open source community**
+- **Studio Recording** - Professional-quality synthesis for music production
+- **Live Performance** - Reliable standalone operation with direct MIDI control
+- **Sound Design** - Real-time parameter tweaking for creative sound exploration
+- **Education** - Learn synthesis concepts with hands-on control
+- **Prototyping** - Platform for developing new synthesis algorithms
+
+## 🤝 Contributing
+
+Feel free to contribute new synthesis engines, improvements, or bug fixes. Each synthesizer is standalone, making it easy to add new engines or enhance existing ones.
+
+## 🏆 Acknowledgements - Standing on the Shoulders of Giants
+
+This project stands proudly on the shoulders of giants. The synthesizer ecosystem thrives because of the incredible work done by passionate developers, companies, and communities who have shared their knowledge and code with the world. Without these foundational projects, this Multi-Teensy synthesis collection would not exist.
+
+### Core Platform
+- **[PJRC](https://www.pjrc.com/)** - Teensy 4.1 microcontroller platform and the incredible Teensy Audio Library that makes real-time audio synthesis possible on embedded hardware
+- **[Roland Corporation](https://www.roland.com/)** - For creating legendary synthesizers like the Juno-60 (1982) and DX7 that inspired these project's sound designs and architectures
+
+### Synthesis Engine Foundations
+
+This Multi-Teensy project incorporates synthesis engines and techniques from several groundbreaking open-source projects:
+
+#### **Mutable Instruments Braids**
+- **Original Author**: Émilie Gillet ([pichenettes](https://github.com/pichenettes))
+- **License**: MIT License (STM32F projects)
+- **Repository**: [github.com/pichenettes/eurorack](https://github.com/pichenettes/eurorack)
+- **Contribution**: Macro oscillator concepts, digital synthesis algorithms, and sophisticated signal processing techniques
+- **About**: Revolutionary Eurorack macro oscillator module that introduced advanced synthesis techniques to the modular world
+
+#### **MicroDexed (FM Synthesis)**
+- **Original Author**: H. Wirtz (wirtz@parasitstudio.de)
+- **License**: GPL v3.0
+- **Repository**: [codeberg.org/dcoredump/MicroDexed](https://codeberg.org/dcoredump/MicroDexed) (moved from GitHub)
+- **Based on**: Dexed FM synthesizer by [asb2m10](https://github.com/asb2m10/dexed) and Google's [music-synthesizer-for-android](https://github.com/google/music-synthesizer-for-android)
+- **Contribution**: 6-operator FM synthesis engine, DX7 compatibility, and advanced FM algorithms ported to Teensy
+- **About**: A complete DX7-compatible FM synthesizer running on Teensy hardware
+
+#### **MDA EPiano**
+- **Original Author**: Paul Kellett (mda-vst)
+- **License**: MIT/GPL (dual license)
+- **Repository**: [sourceforge.net/projects/mda-vst](https://sourceforge.net/projects/mda-vst/)
+- **Contribution**: Electric piano synthesis engine, sample-based synthesis techniques, and vintage electric piano emulation
+- **About**: Classic electric piano VST plugin made open source, providing authentic electric piano sounds
+
+#### **Synth_Dexed**
+- **Author**: H. Wirtz
+- **License**: GPL v3.0 / Apache 2.0 (dual license for compatibility)
+- **Repository**: [codeberg.org/dcoredump/Synth_Dexed](https://codeberg.org/dcoredump/Synth_Dexed)
+- **Contribution**: Teensy Audio Library integration for FM synthesis, efficient microcontroller implementation
+- **About**: Six-operator FM synthesizer object specifically designed for microcontrollers
+
+### Community Ports and Adaptations
+
+This project directly incorporates Teensy implementations from community-driven ports:
+
+#### **MicroDexed Touch - Teensy Synthesis Engines**
+- **Project**: [MicroDexed Touch](https://www.synthtopia.com/content/2022/09/04/microdexed-touch-is-an-open-source-fm-groovebox/)
+- **Direct Usage**: This project uses MicroDexed Touch's Teensy implementations of:
+  - **MDA EPiano** - Electric piano synthesis engine ported to Teensy Audio Library
+  - **Braids** - Macro oscillator synthesis engine adapted for Teensy hardware
+  - **MicroDexed** - FM synthesis engine optimized for Teensy microcontrollers
+- **Contribution**: Production-ready Teensy Audio Library integration, hardware-optimized synthesis code, and real-time performance enhancements
+- **About**: Complete Teensy-based synthesizer platform that provided the foundation for our multi-engine approach
+
+#### **Additional Community Resources**
+- **[teensy-braids](https://github.com/modlfo/teensy-braids)** - Community Teensy port of Braids
+- **[burns.ca/eurorack](https://burns.ca/eurorack.html)** - Excellent Eurorack analysis and documentation  
+- **LV2 MDA ports** by [nphilipp](https://github.com/nphilipp/lv2-mda) and community contributors
+
+### Hardware Innovation
+- **[MiniDexed Touch Hardware](https://www.synthtopia.com/content/2022/09/04/microdexed-touch-is-an-open-source-fm-groovebox/)** - Hardware interface design and user experience inspiration
+- **Community hardware builders** - Countless makers who have shared build guides, troubleshooting, and improvements
+
+### Development Philosophy
+
+The open-source synthesizer community embodies a unique spirit of collaboration, where:
+- **Code is shared freely** - Allowing others to learn, modify, and improve
+- **Hardware designs are open** - Enabling anyone to build and modify instruments
+- **Knowledge is documented** - Creating resources for future generations of builders
+- **Attribution is respected** - Honoring the work of original creators
+
+### Our Commitment
+
+We are committed to:
+- **Respecting all licenses** - Ensuring proper attribution and compliance
+- **Contributing back** - Sharing improvements and bug fixes with upstream projects
+- **Educating makers** - Providing clear documentation and build guides
+- **Supporting the community** - Helping others learn and build their own instruments
+
+### A Living Tribute
+
+This project is not just a collection of synthesizers—it's a living tribute to the incredible work done by synthesizer pioneers, both in hardware and software. Every note played is a reminder of the collective genius that makes these sounds possible.
+
+**Thank you to everyone who has contributed to the open-source synthesizer ecosystem. Your work lives on in every beat, every melody, and every sonic exploration made possible by this project.**
+
+---
+
+## 📄 License
+
+This project is open source with multiple licenses depending on the synthesis engines used. Please see individual project folders and the acknowledgements above for specific license information. All original code contributions are licensed under GPL v3.0 unless otherwise specified.
