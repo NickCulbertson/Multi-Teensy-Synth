@@ -1,11 +1,8 @@
-# Multi-Teensy-Synth Collection (WIP)
+# Multi-Teensy-Synth Collection
 
-**🚧 WORK IN PROGRESS 🚧**  
-This project is very much under construction. More engines and proper attributions are being included. This is just a preview.
+A collection of **5 standalone polyphonic synthesizers** built with the Teensy 4.1 microcontroller, each featuring different synthesis engines optimized for real-time performance and hands-on control.
 
-A collection of **standalone polyphonic synthesizers** built with the Teensy 4.1 microcontroller, each featuring different synthesis engines and optimized for the Mini-Teensy hardware platform.
-
-**Built on open-source synthesis engines:** [MicroDexed Touch](https://codeberg.org/positionhigh/MicroDexed-touch), [Mutable Instruments Braids](https://github.com/pichenettes/eurorack), [MDA EPiano](https://sourceforge.net/projects/mda-vst/), and [MicroDexed](https://codeberg.org/dcoredump/MicroDexed). *See acknowledgements below for full attribution.*
+**Built on legendary open-source synthesis engines:** [MicroDexed Touch](https://codeberg.org/positionhigh/MicroDexed-touch), [Mutable Instruments Braids](https://github.com/pichenettes/eurorack), [MDA EPiano](https://sourceforge.net/projects/mda-vst/), and [MicroDexed](https://codeberg.org/dcoredump/MicroDexed). *See full acknowledgements below.*
 
 ## 🎹 Available Synthesizers
 
@@ -20,11 +17,11 @@ A collection of **standalone polyphonic synthesizers** built with the Teensy 4.1
 
 ### 2. EPiano-Teensy-Synth
 **16-Voice Electric Piano Synthesizer** (MDA EPiano engine)
-- Authentic electric piano sound modeling
-- 8 classic electric piano programs
-- Real-time parameter control (decay, release, hardness, treble, etc.)
-- Configurable encoder mapping for intuitive control
-- High-quality 16-bit audio output
+- Authentic electric piano sound modeling (Rhodes/Wurlitzer-style)
+- 5 built-in presets: Default, Bright, Mellow, Autopan, Tremolo
+- Real-time control: decay, release, hardness, treble, stereo width, LFO, overdrive
+- Stereo output with authentic panning and modulation effects
+- 11 mapped encoders for immediate hands-on control
 
 ### 3. FM-Teensy-Synth
 **16-Voice FM Synthesizer** (DX7-compatible via Dexed engine)
@@ -36,27 +33,27 @@ A collection of **standalone polyphonic synthesizers** built with the Teensy 4.1
 
 ### 4. DCO-Teensy-Synth
 **6-Voice DCO Synthesizer** (Juno-60 inspired)
-- PWM + Sawtooth oscillators with sub-oscillator
-- 24dB ladder filter + 12dB high-pass filter
-- Authentic BBD Chorus with stereo imaging
-- Independent LFO with multiple modulation targets
-- 6 classic Juno-style presets
+- Dual oscillators: PWM + Sawtooth with sub-oscillator
+- Authentic 24dB ladder filter with resonance and envelope modulation
+- Classic BBD-style Chorus with I, II, and I+II modes for vintage stereo imaging
+- Independent LFO targeting filter, oscillators, or pulse width
+- 6 classic Juno-inspired presets with direct chorus mode control
 
 ### 5. MacroOscillator-Teensy-Synth
-**6-Voice Digital Synthesizer** (Braids engine)
-- 40+ synthesis algorithms and models
-- Macro oscillator concepts with timbre control
-- Digital synthesis techniques from Eurorack
-- Real-time parameter morphing
-- Advanced synthesis algorithms
+**6-Voice Digital Synthesizer** (Mutable Instruments Braids)
+- 40+ synthesis algorithms: analog modeling, FM, physical modeling, digital noise
+- Macro oscillator approach with unified timbre and color controls
+- Advanced algorithms: vowel formants, particle noise, resonant comb filtering
+- Real-time morphing between synthesis methods
+- Eurorack-quality digital synthesis in standalone format
 
 ## 🛠 Hardware Requirements
 
 ### Required Components
-- **Teensy 4.1** microcontroller
-- **Mini-Teensy hardware** (19 rotary encoders + menu encoder)
-- **16x2 LCD** or **128x64 OLED** display
-- **USB connection** for MIDI and audio
+- **Teensy 4.1** microcontroller (Teensy 4.0 compatible with minor pin changes)
+- **11-20 rotary encoders** (depending on synth) + **menu encoder**
+- **16x2 LCD** (I2C) or **128x64 OLED** display
+- **USB connection** for MIDI input and audio output
 
 ### Optional Components
 - **DIN MIDI Input** circuit (6N138 optocoupler + 220Ω resistor + 5-pin DIN)
@@ -113,14 +110,20 @@ Example configuration:
 
 ## 🚀 Getting Started
 
-1. **Choose a synthesizer** from the three available options
+1. **Choose a synthesizer** from the 5 available options
 2. **Install required libraries** via Arduino Library Manager
 3. **Configure hardware** in `config.h`:
    - Set display type (LCD or OLED)
-   - Configure MIDI sources
+   - Configure MIDI sources (USB Device/Host, DIN MIDI)
    - Map encoders to desired parameters
 4. **Upload to Teensy 4.1**
 5. **Connect MIDI controller** and start playing!
+
+### Quick Feature Overview
+- **Plug-and-play** - Each synth works immediately after upload
+- **Menu system** - Navigate parameters, presets, and settings with menu encoder
+- **Real-time control** - Turn any encoder to immediately adjust that parameter
+- **Auto-exit menus** - Physical encoders automatically exit menus for instant control
 
 ## 📋 Project Structure
 
@@ -135,7 +138,7 @@ Multi-Teensy-Synth/
 │   ├── EPiano-Teensy-Synth.ino # Main sketch
 │   ├── config.h                # Hardware & parameter mapping
 │   ├── MenuNavigation.cpp      # Menu system implementation
-│   ├── mdaEPiano.h/.cpp        # MDA EPiano sound engine
+│   ├── src/                    # MDA EPiano sound engine
 │   └── README.md               # Detailed documentation
 ├── FM-Teensy-Synth/            # FM Synthesizer
 │   ├── FM-Teensy-Synth.ino     # Main sketch
@@ -157,15 +160,16 @@ Multi-Teensy-Synth/
     └── README.md               # Detailed documentation
 ```
 
-## 🎯 Features
+## 🎯 Key Features
 
-- **Professional Audio Quality** - 16-bit/44.1kHz USB audio output
-- **Low Latency** - Optimized for real-time performance
-- **Polyphonic** - Multiple voices per synthesizer (6-16 depending on engine)
-- **MIDI Compatible** - Full MIDI support with multiple input options
-- **User Friendly** - Intuitive menu systems and configurable controls
-- **Standalone Operation** - No computer required with USB Host MIDI
-- **Expandable** - Easy to add new synthesis engines or modify existing ones
+- **5 Complete Synthesis Engines** - Virtual analog, FM, electric piano, DCO, and digital macro oscillator
+- **Professional Audio Quality** - 16-bit/44.1kHz stereo USB audio output
+- **Real-time Performance** - Optimized for low-latency live playing and recording
+- **6-16 Voice Polyphony** - Depending on synthesis complexity
+- **Flexible MIDI Input** - USB Device, USB Host, and DIN MIDI support
+- **Intuitive Control** - Menu systems with immediate encoder override
+- **Configurable Mapping** - Assign any encoder to any parameter via config files
+- **Standalone Ready** - No computer required with USB Host MIDI setup
 
 ## 🔊 Audio Output
 
@@ -175,11 +179,12 @@ All synthesizers output high-quality audio via:
 
 ## 🎵 Use Cases
 
-- **Studio Recording** - Professional-quality synthesis for music production
-- **Live Performance** - Reliable standalone operation with direct MIDI control
-- **Sound Design** - Real-time parameter tweaking for creative sound exploration
-- **Education** - Learn synthesis concepts with hands-on control
-- **Prototyping** - Platform for developing new synthesis algorithms
+- **Studio Production** - High-quality synthesis engines for professional recording
+- **Live Performance** - Reliable standalone operation with immediate parameter access
+- **Sound Design** - Real-time tweaking across multiple synthesis methods
+- **Education** - Hands-on learning of different synthesis techniques
+- **Prototyping** - Platform for experimenting with synthesis algorithms
+- **Vintage Recreation** - Authentic emulation of classic synthesizers
 
 ## 🤝 Contributing
 

@@ -24,7 +24,7 @@ const char* PROJECT_SUBTITLE = "16-Voice MDA";
 #include <Audio.h>
 #include <Wire.h>
 #include <Encoder.h>
-#include "synth_mda_epiano.h"
+#include "src/synth_mda_epiano.h"
 
 // ============================================================================
 // Display Setup
@@ -412,7 +412,7 @@ void loop() {
     byte data1 = midi1.getData1();
     byte data2 = midi1.getData2();
     
-    if (midiChannel != 0 && channel != midiChannel) continue;
+    // if (midiChannel != 0 && channel != midiChannel) continue;
     
     switch (type) {
       case usbMIDI.NoteOn:
