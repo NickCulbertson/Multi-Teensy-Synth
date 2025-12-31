@@ -1,6 +1,6 @@
 # Multi-Teensy-Synth Collection
 
-A collection of **5 standalone polyphonic synthesizers** built with the Teensy 4.1 microcontroller, each featuring different synthesis engines optimized for real-time performance and hands-on control.
+A collection of **5 standalone polyphonic synthesizers** built with the Teensy 4.1 microcontroller, each featuring different synthesis engines.
 
 **Built on legendary open-source synthesis engines:** [MicroDexed Touch](https://codeberg.org/positionhigh/MicroDexed-touch), [Mutable Instruments Braids](https://github.com/pichenettes/eurorack), [MDA EPiano](https://sourceforge.net/projects/mda-vst/), and [MicroDexed](https://codeberg.org/dcoredump/MicroDexed). *See full acknowledgements below.*
 
@@ -32,7 +32,7 @@ A collection of **5 standalone polyphonic synthesizers** built with the Teensy 4
 - Authentic DX7 sound engine with multiple algorithms
 
 ### 4. DCO-Teensy-Synth
-**6-Voice DCO Synthesizer** (Juno-60 inspired)
+**6-Voice DCO Synthesizer** (Juno inspired)
 - Dual oscillators: PWM + Sawtooth with sub-oscillator
 - Authentic 24dB ladder filter with resonance and envelope modulation
 - Classic BBD-style Chorus with I, II, and I+II modes for vintage stereo imaging
@@ -49,18 +49,96 @@ A collection of **5 standalone polyphonic synthesizers** built with the Teensy 4
 
 ## 🛠 Hardware Requirements
 
+**Full Build:**
 ### Required Components
-- **Teensy 4.1** microcontroller (Teensy 4.0 compatible with minor pin changes)
-- **11-20 rotary encoders** (depending on synth) + **menu encoder**
-- **16x2 LCD** (I2C) or **128x64 OLED** display
-- **USB connection** for MIDI input and audio output
+- **Teensy 4.1** microcontroller
 
 ### Optional Components
+- **19x Rotary Encoders** + **1x Menu Encoder** with push button
+- **16x2 LCD** (I2C) or **128x64 OLED** display
+- **USB connection** for MIDI input and audio output
 - **DIN MIDI Input** circuit (6N138 optocoupler + 220Ω resistor + 5-pin DIN)
 - **USB MIDI Host** setup:
   - USB OTG adapter cable or USB Host pins on Teensy 4.1
   - USB MIDI controller (keyboard, pad controller, etc.)
   - External 5V power supply if using high-power USB devices
+- **Enclosure, knob caps, hookup wire**
+
+**Minimal Build:**
+- **Teensy 4.1** + **1x Menu Encoder** + **LCD**
+- USB cable for audio/MIDI output
+- All parameters accessible via menu system
+
+**Parts:**
+- Teensy 4.1 (https://www.sparkfun.com/teensy-4-1-without-ethernet.html)
+- Menu Encoder (https://www.amazon.com/Taiss-KY-040-Encoder-15×16-5-Arduino/dp/B07F26CT6B/ref=sr_1_3_pp)
+- Other Encoders (https://www.aliexpress.us/item/3256801237549169.html)
+- LCD 2X16 (https://www.amazon.com/Hosyond-Display-Module-Arduino-Raspberry/dp/B0BWTFN9WF/ref=sr_1_2)
+- Knobs (https://www.amazon.com/Taiss-Silver-Rotary-Potentiometer-Diameter/dp/B07F25NMJ7/ref=sr_1_5)
+
+## Detailed Wiring & Pinout
+
+This project is compatible with the MiniTeensy Synth box. See those full build details here: https://github.com/NickCulbertson/Mini-Teensy-Synth
+
+### **Teensy 4.1 Complete Pinout Assignment**
+
+```
+                    Teensy 4.1 Pinout Map
+    ┌─────┐                     ┌─────┐
+    │  0  │ enc3 CLK         5V │ VIN │ LCD Power
+    │  1  │ enc3 DT             │ GND │ All encoders daisy-chained to ground + LCD and Menu
+    │  2  │ enc2 CLK            │ 3V  │ Menu Encoder Power
+    │  3  │ enc2 DT             │ 23  │ enc15 CLK 
+    │  4  │ enc1 CLK            │ 22  │ enc15 DT  
+    │  5  │ enc1 DT             │ 21  │ enc11 CLK 
+    │  6  │ enc5 CLK            │ 20  │ enc11 DT  
+    │  7  │ enc5 DT             │ 19  │ SCL (LCD I2C) 
+    │  8  │ enc4 CLK            │ 18  │ SDA (LCD I2C) 
+    │  9  │ enc4 DT             │ 17  │ enc18 CLK 
+    │ 10  │ enc8 CLK            │ 16  │ enc18 DT 
+    │ 11  │ enc8 DT             │ 15  │ Menu Encoder DT 
+    │ 12  │ enc7 CLK            │ 14  │ Menu Encoder CLK 
+    └─────┘                     │ 13  │ Menu Encoder SW 
+                                └─────┘
+    │ 24  │ enc7 DT             │ 41  │ enc14 DT  
+    │ 25  │ enc6 CLK            │ 40  │ enc20 CLK 
+    │ 26  │ enc10 DT            │ 39  │ enc20 DT  
+    │ 27  │ enc6 DT             │ 38  │ enc19 CLK 
+    │ 28  │ enc10 CLK           │ 37  │ enc19 DT 
+    │ 29  │ enc9 CLK            │ 36  │ enc16 CLK 
+    │ 30  │ enc9 DT             │ 35  │ enc16 DT 
+    │ 31  │ enc17 CLK           │ 34  │ enc13 CLK
+    │ 32  │ enc17 DT            │ 33  │ enc13 DT  
+    └─────┘                     │     │
+                                │ 50  │ enc14 CLK (Under the Teensy)
+                                │ 51  │
+                                │ 52  │
+                                └─────┘
+```
+
+### **Minimal Build (LCD + 1 Encoder)**
+Perfect for testing or easier builds:
+
+**Menu Encoder Connections:**
+```
+Menu Encoder Pin    →  Teensy 4.1 Pin    │  Function
+─────────────────────────────────────────┼─────────────
+SW (Push Button)    →  13                │  Menu Select
+CLK                 →  14                │  Rotary Clock
+DT                  →  15                │  Rotary Data  
+VCC                 →  3.3V              │  Power (3.3V)
+GND                 →  GND               │  Ground
+```
+
+**LCD I2C Connections:**
+```
+LCD Pin    →  Teensy 4.1 Pin    │  Function
+────────────────────────────────┼─────────────────
+VCC        →  5V (VIN)          │  Power
+GND        →  GND               │  Ground
+SDA        →  18                │  I2C Data
+SCL        →  19                │  I2C Clock
+```
 
 ## 📡 MIDI Configuration
 
@@ -177,26 +255,16 @@ All synthesizers output high-quality audio via:
 - **USB Audio** - Connect to computer for recording/monitoring
 - **I2S Audio** - Connect to external DAC for standalone operation (hardware modification required)
 
-## 🎵 Use Cases
-
-- **Studio Production** - High-quality synthesis engines for professional recording
-- **Live Performance** - Reliable standalone operation with immediate parameter access
-- **Sound Design** - Real-time tweaking across multiple synthesis methods
-- **Education** - Hands-on learning of different synthesis techniques
-- **Prototyping** - Platform for experimenting with synthesis algorithms
-- **Vintage Recreation** - Authentic emulation of classic synthesizers
-
 ## 🤝 Contributing
 
 Feel free to contribute new synthesis engines, improvements, or bug fixes. Each synthesizer is standalone, making it easy to add new engines or enhance existing ones.
 
-## 🏆 Acknowledgements - Standing on the Shoulders of Giants
+## 🏆 Acknowledgements
 
-This project stands proudly on the shoulders of giants. The synthesizer ecosystem thrives because of the incredible work done by passionate developers, companies, and communities who have shared their knowledge and code with the world. Without these foundational projects, this Multi-Teensy synthesis collection would not exist.
+This project stands proudly on the shoulders of giants. The synthesizer ecosystem thrives because of the incredible work done by indie developers, companies, and communities who have shared their knowledge and code with the world.
 
 ### Core Platform
 - **[PJRC](https://www.pjrc.com/)** - Teensy 4.1 microcontroller platform and the incredible Teensy Audio Library that makes real-time audio synthesis possible on embedded hardware
-- **[Roland Corporation](https://www.roland.com/)** - For creating legendary synthesizers like the Juno-60 (1982) and DX7 that inspired these project's sound designs and architectures
 
 ### Synthesis Engine Foundations
 
@@ -243,37 +311,6 @@ This project directly incorporates Teensy implementations from community-driven 
   - **MicroDexed** - FM synthesis engine optimized for Teensy microcontrollers
 - **Contribution**: Production-ready Teensy Audio Library integration, hardware-optimized synthesis code, and real-time performance enhancements
 - **About**: Complete Teensy-based synthesizer platform that provided the foundation for our multi-engine approach
-
-#### **Additional Community Resources**
-- **[teensy-braids](https://github.com/modlfo/teensy-braids)** - Community Teensy port of Braids
-- **[burns.ca/eurorack](https://burns.ca/eurorack.html)** - Excellent Eurorack analysis and documentation  
-- **LV2 MDA ports** by [nphilipp](https://github.com/nphilipp/lv2-mda) and community contributors
-
-### Hardware Innovation
-- **[MiniDexed Touch Hardware](https://www.synthtopia.com/content/2022/09/04/microdexed-touch-is-an-open-source-fm-groovebox/)** - Hardware interface design and user experience inspiration
-- **Community hardware builders** - Countless makers who have shared build guides, troubleshooting, and improvements
-
-### Development Philosophy
-
-The open-source synthesizer community embodies a unique spirit of collaboration, where:
-- **Code is shared freely** - Allowing others to learn, modify, and improve
-- **Hardware designs are open** - Enabling anyone to build and modify instruments
-- **Knowledge is documented** - Creating resources for future generations of builders
-- **Attribution is respected** - Honoring the work of original creators
-
-### Our Commitment
-
-We are committed to:
-- **Respecting all licenses** - Ensuring proper attribution and compliance
-- **Contributing back** - Sharing improvements and bug fixes with upstream projects
-- **Educating makers** - Providing clear documentation and build guides
-- **Supporting the community** - Helping others learn and build their own instruments
-
-### A Living Tribute
-
-This project is not just a collection of synthesizers—it's a living tribute to the incredible work done by synthesizer pioneers, both in hardware and software. Every note played is a reminder of the collective genius that makes these sounds possible.
-
-**Thank you to everyone who has contributed to the open-source synthesizer ecosystem. Your work lives on in every beat, every melody, and every sonic exploration made possible by this project.**
 
 ---
 
