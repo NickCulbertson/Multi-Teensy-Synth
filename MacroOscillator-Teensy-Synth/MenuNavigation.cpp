@@ -36,6 +36,7 @@ extern const char* controlNames[];
 extern const char* shapeNames[];
 extern int midiChannel;
 extern int currentPreset;
+extern bool parameterChanged;
 
 const BraidsPreset braidsPresets[NUM_PRESETS] = {
   {"CSaw Lead", 0, 64, 32, 5, 20, 100, 50, 40, 3000, 30},       // Classic saw lead
@@ -163,11 +164,15 @@ void updateDisplay() {
           break;
       }
     }
+    displayText(line1, line2);
   } else {
-    line1 = "Braids Synth";
-    line2 = "Press for menu";
+    // Only show default message if no parameter was recently changed via MIDI
+    if (!parameterChanged) {
+      line1 = "Braids Synth";
+      line2 = "Press for menu";
+      displayText(line1, line2);
+    }
   }
-  displayText(line1, line2);
 }
 
 int getParameterIndex(MenuState state) {
@@ -659,7 +664,7 @@ void backMenuAction() {
 
 void updateParameterFromMenu(int paramIndex, float val) {
   updateBraidsParameter(paramIndex, val);
-  updateDisplay();
+  // Display update removed - now handled once per loop in main()
 }
 
 void resetEncoderBaselines() {

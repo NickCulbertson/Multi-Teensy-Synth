@@ -46,15 +46,19 @@ const char* PROJECT_SUBTITLE = "DX7 Compatible";
   #define OLED_RESET -1
 #endif
 
-#ifdef ENABLE_DIN_MIDI
-#include <MIDI.h>
-MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);
-#endif
+// ============================================================================
+// MIDI Setup
+// ============================================================================
 
 #ifdef USE_MIDI_HOST
-// USB Host MIDI device for external controllers
 USBHost myusb;
+USBHub hub1(myusb);
 MIDIDevice midi1(myusb);
+#endif
+
+#ifdef USE_DIN_MIDI
+#include <MIDI.h>
+MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);
 #endif
 
 // All 19 Mini-Teensy Encoders (using configurable pin definitions from config.h)
@@ -113,11 +117,26 @@ float allParameterValues[NUM_PARAMETERS] = {
 
 // FM synthesis objects
 AudioSynthDexed       dexed(VOICES, AUDIO_SAMPLE_RATE);  // DX7-compatible FM synthesis with 16 voices
-AudioOutputUSB        usb1;
+
+#ifdef USE_USB_AUDIO
+AudioOutputUSB        usb1;            // USB audio output (stereo)
+#endif
+
+#ifdef USE_TEENSY_DAC
+AudioOutputI2S        i2s1;            // I2S DAC output (Teensy Audio Shield)
+AudioControlSGTL5000  sgtl5000_1;
+#endif
 
 // Audio connections
+#ifdef USE_USB_AUDIO
 AudioConnection patchCord1(dexed, 0, usb1, 0); // Left channel
 AudioConnection patchCord2(dexed, 0, usb1, 1); // Right channel (mono to stereo)
+#endif
+
+#ifdef USE_TEENSY_DAC
+AudioConnection patchCord3(dexed, 0, i2s1, 0); // Left channel
+AudioConnection patchCord4(dexed, 0, i2s1, 1); // Right channel (mono to stereo)
+#endif
 
 // Control parameter names for menu display
 const char* controlNames[NUM_PARAMETERS] = {
@@ -145,74 +164,161 @@ float pitchWheelValue = 0.0;
 float modWheelValue = 0.0;
 int midiChannel = 0; // 0 = omni, 1-16 = specific channel
 
-#ifdef ENABLE_DIN_MIDI
-void OnNoteOn(byte channel, byte note, byte velocity) {
-  dexed.keydown(note, velocity);
-}
+// Display update tracking for MIDI CC changes
+int lastChangedParam = -1;
+float lastChangedValue = 0.0;
+String lastChangedName = "";
+bool parameterChanged = false;
 
-void OnNoteOff(byte channel, byte note, byte velocity) {
-  dexed.keyup(note);
-}
 
-void OnControlChange(byte channel, byte number, byte value) {
-  if (number == 1) { // Mod wheel
-    modWheelValue = value / 127.0;
-    dexed.setModWheel(value);
+
+// ============================================================================
+// Centralized MIDI Handler
+// ============================================================================
+
+void processMidiMessage(byte type, byte channel, byte data1, byte data2) {
+  // Filter by MIDI channel (0 = omni, 1-16 = specific channel)
+  if (midiChannel != 0 && channel != midiChannel) return;
+  
+  switch (type) {
+    case 0x90: // Note On (or Note Off with velocity 0)
+      if (data2 > 0) {
+        dexed.keydown(data1, data2);
+      } else {
+        dexed.keyup(data1);
+      }
+      break;
+      
+    case 0x80: // Note Off
+      dexed.keyup(data1);
+      break;
+      
+    case 0xB0: // Control Change
+      handleControlChange(data1, data2);
+      break;
+      
+    case 0xC0: // Program Change
+      handleProgramChange(data1);
+      break;
+      
+    case 0xE0: // Pitch Bend
+      {
+        int pitchBendValue = (data2 << 7) | data1; // Combine MSB and LSB
+        pitchWheelValue = (pitchBendValue - 8192) / 8192.0;
+        dexed.setPitchbend((uint16_t)pitchBendValue);
+      }
+      break;
   }
 }
 
-void OnPitchBend(byte channel, int bend) {
-  pitchWheelValue = (bend - 8192) / 8192.0;
-  dexed.setPitchbend((uint16_t)bend);
-}
-#endif
-
-#ifdef USE_MIDI_HOST
-// USB Host MIDI callback handlers
-void OnUSBHostNoteOn(byte channel, byte note, byte velocity) {
-  dexed.keydown(note, velocity);
-}
-void OnUSBHostNoteOff(byte channel, byte note, byte velocity) {
-  dexed.keyup(note);
-}
-void OnUSBHostControlChange(byte channel, byte number, byte value) {
-  if (number == 1) { // Mod wheel
-    modWheelValue = value / 127.0;
+void handleControlChange(int cc, int value) {
+  // Convert MIDI value (0-127) to parameter value (0.0-1.0)
+  float paramValue = value / 127.0;
+  
+  // Handle standard MIDI CCs first
+  if (cc == CC_MODWHEEL) {
+    modWheelValue = paramValue;
     dexed.setModWheel(value);
+    
+    // Track mod wheel change for display
+    if (!inMenu) {
+      lastChangedParam = -1;  // Special flag for non-parameter controls
+      lastChangedName = "Mod Wheel";
+      lastChangedValue = value;  // Use raw 0-127 value for display
+      parameterChanged = true;
+    }
+    return;
+  }
+  
+  // Handle FM parameter CCs
+  int paramIndex = -1;
+  
+  // if (cc == CC_ALGORITHM) paramIndex = 0;
+  // else if (cc == CC_FEEDBACK) paramIndex = 1;
+  // else if (cc == CC_LFO_SPEED) paramIndex = 2;
+  // else if (cc == CC_MASTER_VOL) paramIndex = 3;
+  // else if (cc == CC_OP1_LEVEL) paramIndex = 4;
+  // else if (cc == CC_OP2_LEVEL) paramIndex = 5;
+  // else if (cc == CC_OP3_LEVEL) paramIndex = 6;
+  // else if (cc == CC_OP4_LEVEL) paramIndex = 7;
+  // else if (cc == CC_OP5_LEVEL) paramIndex = 8;
+  // else if (cc == CC_OP6_LEVEL) paramIndex = 9;
+
+  if (cc == CC_1_PARAM) paramIndex = ENC_1_PARAM;          // ALGORITHM
+  else if (cc == CC_2_PARAM) paramIndex = ENC_2_PARAM;     // FEEDBACK
+  else if (cc == CC_3_PARAM) paramIndex = ENC_3_PARAM;     // LFO_SPEED
+  else if (cc == CC_4_PARAM) paramIndex = ENC_4_PARAM;     // MASTER_VOL
+  else if (cc == CC_5_PARAM) paramIndex = ENC_5_PARAM;     // OP1_LEVEL
+  else if (cc == CC_6_PARAM) paramIndex = ENC_6_PARAM;     // OP2_LEVEL
+  else if (cc == CC_7_PARAM) paramIndex = ENC_7_PARAM;     // OP3_LEVEL
+  else if (cc == CC_8_PARAM) paramIndex = ENC_8_PARAM;     // OP4_LEVEL
+  else if (cc == CC_9_PARAM) paramIndex = ENC_9_PARAM;     // OP5_LEVEL 
+  else if (cc == CC_10_PARAM) paramIndex = ENC_10_PARAM;   // OP6_LEVEL 
+  
+  // Update parameter if mapped
+  if (paramIndex >= 0) {
+    allParameterValues[paramIndex] = paramValue;
+    updateParameterFromMenu(paramIndex, paramValue);
+    
+    // Track parameter change for display
+    if (!inMenu) {
+      lastChangedParam = paramIndex;
+      lastChangedValue = paramValue;
+      lastChangedName = controlNames[paramIndex];
+      parameterChanged = true;
+    }
   }
 }
-void OnUSBHostPitchBend(byte channel, int bend) {
-  // USB Host MIDI uses signed range -8192 to +8191, center = 0
-  pitchWheelValue = bend / 8192.0;
-  dexed.setPitchbend((uint16_t)(bend + 8192)); // Convert back to 0-16383 for dexed
+
+void handleProgramChange(int program) {
+  // Map program change 0-127 to FM bank/patches
+  int bankIndex = (program / 32) % 8;    // 8 banks available (0-7)
+  int patchIndex = program % 32;         // 32 patches per bank (0-31)
+  
+  loadDX7Preset(program); 
+  Serial.print("Program change to bank: ");
+  Serial.print(bankIndex);
+  Serial.print(" patch: ");
+  Serial.println(patchIndex);
 }
-#endif
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
+  
+  // Audio setup
   AudioMemory(40);
-
-  // USB Device MIDI is initialized automatically
-#ifdef USE_USB_DEVICE_MIDI
-  Serial.println("USB Device MIDI enabled");
+  
+#ifdef USE_TEENSY_DAC
+  sgtl5000_1.enable();
+  sgtl5000_1.volume(0.8);
+  Serial.println("Teensy Audio Shield initialized");
 #endif
 
-  // Optionally initialize USB Host MIDI for external controllers
 #ifdef USE_MIDI_HOST
   myusb.begin();
-  midi1.setHandleNoteOn(OnUSBHostNoteOn);
-  midi1.setHandleNoteOff(OnUSBHostNoteOff);
-  midi1.setHandleControlChange(OnUSBHostControlChange);
-  midi1.setHandlePitchChange(OnUSBHostPitchBend);
-  Serial.println("USB Host MIDI enabled");
+  Serial.println("USB Host MIDI initialized");
 #endif
-  
-#ifdef ENABLE_DIN_MIDI
+
+#ifdef USE_DIN_MIDI
   MIDI.begin(MIDI_CHANNEL_OMNI);
-  MIDI.setHandleNoteOn(OnNoteOn);
-  MIDI.setHandleNoteOff(OnNoteOff);
-  MIDI.setHandleControlChange(OnControlChange);
-  MIDI.setHandlePitchBend(OnPitchBend);
+  MIDI.setHandleNoteOn([](byte channel, byte note, byte velocity) {
+    processMidiMessage(0x90, channel, note, velocity);
+  });
+  MIDI.setHandleNoteOff([](byte channel, byte note, byte velocity) {
+    processMidiMessage(0x80, channel, note, velocity);
+  });
+  MIDI.setHandleControlChange([](byte channel, byte cc, byte value) {
+    processMidiMessage(0xB0, channel, cc, value);
+  });
+  MIDI.setHandleProgramChange([](byte channel, byte program) {
+    processMidiMessage(0xC0, channel, program, 0);
+  });
+  MIDI.setHandlePitchBend([](byte channel, int bend) {
+    byte data1 = bend & 0x7F;       // LSB
+    byte data2 = (bend >> 7) & 0x7F; // MSB
+    processMidiMessage(0xE0, channel, data1, data2);
+  });
+  Serial.println("DIN MIDI initialized");
 #endif
   
   pinMode(MENU_ENCODER_SW, INPUT_PULLUP);
@@ -259,6 +365,17 @@ void setup() {
   display.drawStr(3, 40, PROJECT_SUBTITLE);
   display.sendBuffer();
 #endif
+  
+  Serial.println("FM-Teensy Synth initialized");
+  Serial.println("Parameters: 10 FM parameters");
+  
+#ifdef USE_USB_AUDIO
+  Serial.println("Audio output: USB Audio");
+#endif
+#ifdef USE_TEENSY_DAC
+  Serial.println("Audio output: Teensy Audio Shield (I2S)");
+#endif
+
   
   delay(2000);
   updateDisplay();
@@ -388,43 +505,17 @@ void loop() {
   // Process USB Device MIDI messages (if enabled)
 #ifdef USE_USB_DEVICE_MIDI
   while (usbMIDI.read()) {
-    uint8_t type = usbMIDI.getType();
-    uint8_t channel = usbMIDI.getChannel();
-    uint8_t data1 = usbMIDI.getData1();
-    uint8_t data2 = usbMIDI.getData2();
-    
-    // Filter by MIDI channel (0 = omni mode, receive all channels)
-    if (midiChannel != 0 && channel != midiChannel) {
-      continue; // Skip messages not on our channel
-    }
-    
-    if (type == usbMIDI.NoteOn && data2 > 0) {
-      dexed.keydown(data1, data2);
-    } else if (type == usbMIDI.NoteOff || (type == usbMIDI.NoteOn && data2 == 0)) {
-      dexed.keyup(data1);
-    } else if (type == usbMIDI.ControlChange) {
-      // Handle MIDI Control Change messages
-      if (data1 == 1) { // Mod wheel (CC#1)
-        modWheelValue = data2 / 127.0;
-        dexed.setModWheel(data2);
-      }
-    } else if (type == usbMIDI.PitchBend) {
-      // Handle MIDI Pitch Bend messages
-      int16_t bendValue = (data1) | (data2 << 7); // Reconstruct 14-bit value from 7-bit data1/data2
-      pitchWheelValue = (bendValue - 8192) / 8192.0;
-      dexed.setPitchbend(bendValue);
-    } else if (type == usbMIDI.ProgramChange) {
-      // Map program change 0-127 to FM presets 0-31
-      int presetNum = data1 % 32;
-      loadDX7Preset(presetNum);
-    }
+    processMidiMessage(usbMIDI.getType(), usbMIDI.getChannel(), 
+                      usbMIDI.getData1(), usbMIDI.getData2());
   }
 #endif
 
 #ifdef USE_MIDI_HOST
-  // Additionally process USB Host MIDI messages (if enabled)
   myusb.Task();
-  midi1.read();
+  while (midi1.read()) {
+    processMidiMessage(midi1.getType(), midi1.getChannel(), 
+                      midi1.getData1(), midi1.getData2());
+  }
 #endif
   
 #ifdef ENABLE_DIN_MIDI
@@ -433,6 +524,28 @@ void loop() {
   
   readAllControls();
   handleEncoder();
+  
+  // Update display if parameter changed during this loop iteration
+  if (parameterChanged && !inMenu) {
+    String line2 = "";
+    
+    if (lastChangedParam >= 0) {
+      // Special display formatting for certain parameters
+      if (lastChangedParam == 0) { // Algorithm (0-31)
+        int algNum = (int)(lastChangedValue * 31);
+        line2 = "Alg " + String(algNum + 1);
+      } else {
+        int displayValue = (int)(lastChangedValue * 127); // 0-127 scale
+        line2 = String(displayValue);
+      }
+    } else {
+      // For mod wheel and other non-parameter controls
+      line2 = String((int)lastChangedValue);
+    }
+    
+    displayText(lastChangedName, line2);
+    parameterChanged = false;
+  }
   
   // Minimal serial input check for performance
   if (Serial.available()) {

@@ -18,6 +18,7 @@ extern Adafruit_SSD1306 display;
 // ============================================================================
 
 extern Encoder menuEncoder;
+extern bool parameterChanged;
 
 // ============================================================================
 // Menu Variables
@@ -139,12 +140,15 @@ void updateDisplay() {
         }
         break;
     }
+    displayText(line1, line2);
   } else {
-    line1 = "EPiano Synth";
-    line2 = "Press for menu";
+    // Only show default message if no parameter was recently changed via MIDI
+    if (!parameterChanged) {
+      line1 = "EPiano Synth";
+      line2 = "Press for menu";
+      displayText(line1, line2);
+    }
   }
-  
-  displayText(line1, line2);
 }
 
 void enterMenu() {
@@ -279,13 +283,17 @@ void decrementMenuIndex() {
 
 
 void loadPreset(int presetIndex) {
-  if (presetIndex >= 0 && presetIndex < 5) {
+  if (presetIndex >= 0 && presetIndex < getNumPresets()) {
     for (int i = 0; i < 12; i++) {
       allParameterValues[i] = epianoPresets[presetIndex].parameters[i];
       updateParameterFromMenu(i, allParameterValues[i]);
     }
     currentPreset = presetIndex;
   }
+}
+
+int getNumPresets() {
+  return sizeof(epianoPresets) / sizeof(epianoPresets[0]);
 }
 
 void updateEncoderParameter(int paramIndex, int change) {

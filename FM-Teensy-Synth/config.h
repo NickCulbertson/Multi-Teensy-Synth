@@ -2,7 +2,41 @@
 #define CONFIG_H
 
 // ============================================================================
-// Hardware Configuration Template
+// Multi-Teensy-Synth Master Configuration File
+// ============================================================================
+// Copy this file to each project as config.h and uncomment the appropriate 
+// PROJECT_TYPE define below. This ensures consistent configuration across
+// all synthesizers while allowing project-specific customization.
+
+// ============================================================================
+// PROJECT TYPE SELECTION - Uncomment ONE of these in each project
+// ============================================================================
+// #define PROJECT_EPIANO
+// #define PROJECT_DCO  
+#define PROJECT_FM
+// #define PROJECT_MINI
+// #define PROJECT_MACRO
+
+// ============================================================================
+// Preferences - Multi-Teensy Synth Collection
+// ============================================================================
+
+// • DISPLAY TYPE
+// Display Configuration (Choose ONE - comment out the other)
+#define USE_LCD_DISPLAY
+// #define USE_OLED_DISPLAY
+
+// • MIDI TYPE
+#define USE_USB_DEVICE_MIDI // USB Device MIDI for DAW/computer connection (default)
+#define USE_MIDI_HOST       // USB Host MIDI for external controllers connected to Teensy 
+// #define USE_DIN_MIDI // DIN MIDI support - UNTESTED (requires moving enc3 from pin 0) 
+
+// • AUDIO TYPE
+// #define USE_TEENSY_DAC        // Use Teensy Audio Shield or other I2S DAC
+#define USE_USB_AUDIO      // Use USB Audio output (default)
+
+// ============================================================================
+// Hardware Configuration - Multi-Teensy Standard Layout
 // ============================================================================
 
 // Menu Encoder Pin Assignments
@@ -13,15 +47,6 @@
 // ============================================================================
 // Encoder Pin Definitions (Mini-Teensy Standard Layout)
 // ============================================================================
-// Customize these if you have a different pin layout or want to remap encoders
-// 
-// COMMON CUSTOMIZATION SCENARIOS:
-// 1. Different hardware build with different pin layout
-// 2. Want to swap encoder positions physically 
-// 3. Need to avoid pin conflicts (e.g. DIN MIDI on pin 0)
-// 4. Building a custom control surface with fewer encoders
-//
-// Just change the pin numbers below to match your hardware!
 
 #define ENC_1_CLK    4      // enc1 pins
 #define ENC_1_DT     5
@@ -62,87 +87,302 @@
 #define ENC_20_CLK   40     // enc20 pins
 #define ENC_20_DT    39
 
-// Display Configuration (Choose ONE - comment out the other)
-#define USE_LCD_DISPLAY
-// #define USE_OLED_DISPLAY
 
-// MIDI Configuration - Enable the MIDI sources you want to use
-#define USE_USB_DEVICE_MIDI // USB Device MIDI for DAW/computer connection (default)
-#define USE_MIDI_HOST    // USB Host MIDI for external controllers connected to Teensy
+// Standard MIDI CCs (shared across all projects)
+#define CC_MODWHEEL      1    // Standard mod wheel
+#define CC_VOLUME        7    // Standard volume control
+#define CC_SUSTAIN       64   // Standard sustain pedal
 
 // ============================================================================
-// FM Knob Mapping Configuration
+// PROJECT-SPECIFIC CONFIGURATIONS
 // ============================================================================
-// Easily customize which physical knobs control which FM parameters!
-// Just change the parameter numbers next to each encoder to remap your knobs.
 
-// Available FM Parameters (0-9):
-// 0: Algorithm (operator routing)
-// 1: Feedback 
-// 2: LFO Speed
-// 3: LFO Pitch Depth
-// 4: LFO Amp Depth  
-// 5: Transpose
-// 6: OP1 Output Level
-// 7: OP2 Output Level
-// 8: OP3 Output Level
-// 9: OP4 Output Level
+#ifdef PROJECT_EPIANO
+// ============================================================================
+// EPiano-Teensy-Synth Configuration
+// ============================================================================
 
-// MINI-TEENSY ENCODER MAPPING (19 encoders available!)
-// Set any encoder to -1 to disable it, or assign multiple encoders to the same parameter
-// Note: Mini-Teensy hardware has enc1-enc11, enc13-enc20 (no enc12)
+// EPiano MIDI CC Parameter Mapping
+#define CC_1_PARAM       73
+#define CC_2_PARAM       75
+#define CC_3_PARAM       79
+#define CC_4_PARAM       72
+#define CC_5_PARAM       80
+#define CC_6_PARAM       81
+#define CC_7_PARAM       82
+#define CC_8_PARAM       83
+#define CC_9_PARAM       74
+#define CC_10_PARAM      71
+#define CC_11_PARAM      76
+#define CC_12_PARAM      77
+#define CC_13_PARAM      77
+#define CC_14_PARAM      93
+#define CC_15_PARAM      18
+#define CC_16_PARAM      19
+#define CC_17_PARAM      16
+#define CC_18_PARAM      17
+#define CC_19_PARAM      85
+#define CC_20_PARAM      86
 
-#define ENC_1_PARAM    0   // Algorithm        // enc1 (pins 4,5) → Algorithm
-#define ENC_2_PARAM    1   // Feedback         // enc2 (pins 2,3) → Feedback  
-#define ENC_3_PARAM    2   // LFO Speed        // enc3 (pins 0,1) → LFO Speed
-#define ENC_4_PARAM    3   // LFO Pitch        // enc4 (pins 8,9) → LFO Pitch Depth
-#define ENC_5_PARAM    4   // LFO Amp          // enc5 (pins 6,7) → LFO Amp Depth
-#define ENC_6_PARAM    5   // Transpose        // enc6 (pins 25,27) → Transpose
-#define ENC_7_PARAM    6   // OP1 Level        // enc7 (pins 12,24) → OP1 Output Level
-#define ENC_8_PARAM    7   // OP2 Level        // enc8 (pins 10,11) → OP2 Output Level
-#define ENC_9_PARAM    8   // OP3 Level        // enc9 (pins 29,30) → OP3 Output Level
-#define ENC_10_PARAM   9   // OP4 Level        // enc10 (pins 28,26) → OP4 Output Level
-#define ENC_11_PARAM   -1  // Disabled         // enc11 (pins 21,20) → Disabled
-#define ENC_13_PARAM   -1  // Disabled         // enc13 (pins 34,33) → Disabled
-#define ENC_14_PARAM   -1  // Disabled         // enc14 (pins 50,41) → Disabled
-#define ENC_15_PARAM   -1  // Disabled         // enc15 (pins 23,22) → Disabled
-#define ENC_16_PARAM   -1  // Disabled         // enc16 (pins 36,35) → Disabled
-#define ENC_17_PARAM   -1  // Disabled         // enc17 (pins 31,32) → Disabled
-#define ENC_18_PARAM   -1  // Disabled         // enc18 (pins 17,16) → Disabled
-#define ENC_19_PARAM   -1  // Disabled         // enc19 (pins 38,37) → Disabled
-#define ENC_20_PARAM   -1  // Disabled         // enc20 (pins 40,39) → Disabled
+// EPiano Encoder Mapping
+#define ENC_1_PARAM    0   // Decay
+#define ENC_2_PARAM    1   // Release
+#define ENC_3_PARAM    2   // Hardness
+#define ENC_4_PARAM    3   // Treble
+#define ENC_5_PARAM    4   // Pan/Tremolo
+#define ENC_6_PARAM    5   // LFO Rate
+#define ENC_7_PARAM    6   // Velocity
+#define ENC_8_PARAM    7   // Stereo
+#define ENC_9_PARAM    8   // Polyphony
+#define ENC_10_PARAM   9   // Master Tune
+#define ENC_11_PARAM   10  // Detune
+#define ENC_13_PARAM   -1  // Disabled
+#define ENC_14_PARAM   -1  // Disabled
+#define ENC_15_PARAM   -1  // Disabled
+#define ENC_16_PARAM   -1  // Disabled
+#define ENC_17_PARAM   -1  // Disabled
+#define ENC_18_PARAM   -1  // Disabled
+#define ENC_19_PARAM   -1  // Disabled
+#define ENC_20_PARAM   -1  // Disabled
+#define ENC_21_PARAM   -1  // Disabled
+#define ENC_22_PARAM   -1  // Disabled
+#define ENC_23_PARAM   -1  // Disabled
+
+// Menu Encoder Configuration
+#define MENU_ENCODER_PARAM  -1  // Menu-only mode
+
+#endif // PROJECT_EPIANO
+
+#ifdef PROJECT_DCO
+// ============================================================================
+// DCO-Teensy-Synth Configuration  
+// ============================================================================
+
+// DCO MIDI CC Parameter Mapping
+#define CC_1_PARAM       73
+#define CC_2_PARAM       75
+#define CC_3_PARAM       79
+#define CC_4_PARAM       72
+#define CC_5_PARAM       80
+#define CC_6_PARAM       81
+#define CC_7_PARAM       82
+#define CC_8_PARAM       83
+#define CC_9_PARAM       74
+#define CC_10_PARAM      71
+#define CC_11_PARAM      76
+#define CC_12_PARAM      76
+#define CC_13_PARAM      77
+#define CC_14_PARAM      93
+#define CC_15_PARAM      18
+#define CC_16_PARAM      19
+#define CC_17_PARAM      16
+#define CC_18_PARAM      17
+#define CC_19_PARAM      85
+#define CC_20_PARAM      86
+#define CC_21_PARAM      -1
+#define CC_22_PARAM      -1
+#define CC_23_PARAM      -1
+
+// DCO Encoder Mapping
+#define ENC_1_PARAM    0   // Osc1 Range
+#define ENC_2_PARAM    1   // Osc1 Wave
+#define ENC_3_PARAM    2   // Osc1 Volume
+#define ENC_4_PARAM    3   // Osc2 Range
+#define ENC_5_PARAM    4   // Osc2 Wave
+#define ENC_6_PARAM    5   // Osc2 Volume
+#define ENC_7_PARAM    6   // Osc2 Detune
+#define ENC_8_PARAM    7   // Noise Volume
+#define ENC_9_PARAM    8   // LFO Rate
+#define ENC_10_PARAM   9   // LFO Wave
+#define ENC_11_PARAM   10  // LFO Destination
+#define ENC_13_PARAM   12  // LFO Amount
+#define ENC_14_PARAM   13  // Filter Type
+#define ENC_15_PARAM   14  // Env Attack
+#define ENC_16_PARAM   15  // Env Decay
+#define ENC_17_PARAM   16  // Env Sustain
+#define ENC_18_PARAM   17  // Env Release
+#define ENC_19_PARAM   18  // Filter Env Amount
+#define ENC_20_PARAM   19  // Filter Attack
+#define ENC_21_PARAM   -1  // Disable
+#define ENC_22_PARAM   -1  // Disable
+#define ENC_23_PARAM   -1  // Disable
+
+// Menu Encoder Configuration
+#define MENU_ENCODER_PARAM  11  // Filter Cutoff
+
+#endif // PROJECT_DCO
+
+#ifdef PROJECT_FM
+// ============================================================================
+// FM-Teensy-Synth Configuration
+// ============================================================================
+
+// FM MIDI CC Parameter Mapping
+#define CC_1_PARAM       73
+#define CC_2_PARAM       75
+#define CC_3_PARAM       79
+#define CC_4_PARAM       72
+#define CC_5_PARAM       80
+#define CC_6_PARAM       81
+#define CC_7_PARAM       82
+#define CC_8_PARAM       83
+#define CC_9_PARAM       74
+#define CC_10_PARAM      71
+#define CC_11_PARAM      76
+#define CC_12_PARAM      76
+#define CC_13_PARAM      77
+#define CC_14_PARAM      93
+#define CC_15_PARAM      18
+#define CC_16_PARAM      19
+#define CC_17_PARAM      16
+#define CC_18_PARAM      17
+#define CC_19_PARAM      85
+#define CC_20_PARAM      86
+
+// FM Encoder Mapping
+#define ENC_1_PARAM    0   // Algorithm
+#define ENC_2_PARAM    1   // Feedback
+#define ENC_3_PARAM    2   // LFO Speed
+#define ENC_4_PARAM    3   // Master Volume
+#define ENC_5_PARAM    4   // OP1 Level
+#define ENC_6_PARAM    5   // OP2 Level
+#define ENC_7_PARAM    6   // OP3 Level
+#define ENC_8_PARAM    7   // OP4 Level
+#define ENC_9_PARAM    8   // OP5 Level
+#define ENC_10_PARAM   9   // OP6 Level
+#define ENC_11_PARAM   -1  // Disabled
+#define ENC_13_PARAM   -1  // Disabled
+#define ENC_14_PARAM   -1  // Disabled
+#define ENC_15_PARAM   -1  // Disabled
+#define ENC_16_PARAM   -1  // Disabled
+#define ENC_17_PARAM   -1  // Disabled
+#define ENC_18_PARAM   -1  // Disabled
+#define ENC_19_PARAM   -1  // Disabled
+#define ENC_20_PARAM   -1  // Disabled
+
+// Menu Encoder Configuration
+#define MENU_ENCODER_PARAM  -1  // Algorithm
+
+#endif // PROJECT_FM
+
+#ifdef PROJECT_MINI
+// ============================================================================
+// Mini-Teensy-Synth Configuration
+// ============================================================================
+
+
+#define CC_1_PARAM       -1 // OSC1_RANGE
+#define CC_2_PARAM       -1 // OSC2_RANGE
+#define CC_3_PARAM       -1 // OSC3_RANGE
+#define CC_4_PARAM       -1 // OSC2_FINE
+#define CC_5_PARAM       -1 // OSC3_FINE
+#define CC_6_PARAM       -1 // OSC1_WAVE
+#define CC_7_PARAM       -1 // OSC2_WAVE
+#define CC_8_PARAM       -1 // OSC3_WAVE
+#define CC_9_PARAM       -1 // OSC1_VOLUME
+#define CC_10_PARAM      -1 // OSC2_VOLUME
+#define CC_11_PARAM      -1 // OSC3_VOLUME
+#define CC_12_PARAM      74 // CUTOFF
+#define CC_13_PARAM      71 // RESONANCE
+#define CC_14_PARAM      80 // FILTER_ATTACK
+#define CC_15_PARAM      81 // FILTER_DECAY/RELEASE
+#define CC_16_PARAM      82 // FILTER_SUSTAIN
+#define CC_17_PARAM      -1 // NOISE_VOLUME
+#define CC_18_PARAM      73 // AMP_ATTACK
+#define CC_19_PARAM      79 // AMP_SUSTAIN
+#define CC_20_PARAM      75 // AMP_DECAY
+#define CC_21_PARAM      -1 // AMP_ATTACK
+#define CC_22_PARAM      -1 // AMP_SUSTAIN
+#define CC_23_PARAM      -1 // AMP_DECAY
+
+// Mini Encoder Mapping
+#define ENC_1_PARAM    0   // OSC1_RANGE
+#define ENC_2_PARAM    1   // OSC2_RANGE
+#define ENC_3_PARAM    2   // OSC3_RANGE
+#define ENC_4_PARAM    3   // OSC2_FINE
+#define ENC_5_PARAM    4   // OSC3_FINE
+#define ENC_6_PARAM    5   // OSC1_WAVE
+#define ENC_7_PARAM    6   // OSC2_WAVE
+#define ENC_8_PARAM    7   // OSC3_WAVE
+#define ENC_9_PARAM    8   // OSC1_VOLUME
+#define ENC_10_PARAM   9   // OSC2_VOLUME
+#define ENC_11_PARAM   10  // OSC3_VOLUME
+#define ENC_13_PARAM   12  // RESONANCE
+#define ENC_14_PARAM   13  // FILTER_ATTACK
+#define ENC_15_PARAM   14  // FILTER_DECAY/RELEASE
+#define ENC_16_PARAM   15  // FILTER_SUSTAIN
+#define ENC_17_PARAM   16  // NOISE_VOLUME
+#define ENC_18_PARAM   17  // AMP_ATTACK
+#define ENC_19_PARAM   18  // AMP_SUSTAIN
+#define ENC_20_PARAM   19  // AMP_DECAY
+#define ENC_21_PARAM   22  // LFO_Rate
+#define ENC_22_PARAM   23  // LFO_Depth
+#define ENC_23_PARAM   25  // LFO_Target
+
+// Menu Encoder Configuration
+#define MENU_ENCODER_PARAM  11  // CUTOFF
+
+#endif // PROJECT_MINI
+
+#ifdef PROJECT_MACRO
+// ============================================================================
+// MacroOscillator-Teensy-Synth Configuration
+// ============================================================================
+
+// Macro MIDI CC Parameter Mapping
+#define CC_1_PARAM       73
+#define CC_2_PARAM       75
+#define CC_3_PARAM       79
+#define CC_4_PARAM       72
+#define CC_5_PARAM       80
+#define CC_6_PARAM       81
+#define CC_7_PARAM       82
+#define CC_8_PARAM       83
+#define CC_9_PARAM       74
+#define CC_10_PARAM      71
+#define CC_11_PARAM      76
+#define CC_12_PARAM      76
+#define CC_13_PARAM      77
+#define CC_14_PARAM      93
+#define CC_15_PARAM      18
+#define CC_16_PARAM      19
+#define CC_17_PARAM      16
+#define CC_18_PARAM      17
+#define CC_19_PARAM      -1
+#define CC_20_PARAM      -1
+
+// Macro Encoder Mapping
+#define ENC_1_PARAM    0   // BRAIDS_SHAPE
+#define ENC_2_PARAM    1   // BRAIDS_TIMBRE
+#define ENC_3_PARAM    2   // BRAIDS_COLOR
+#define ENC_4_PARAM    -1  // Coarse
+#define ENC_5_PARAM    8   // BRAIDS_FILTER_FREQ
+#define ENC_6_PARAM    9   // BRAIDS_FILTER_RES
+#define ENC_7_PARAM    10  // BRAIDS_FILTER_STR
+#define ENC_8_PARAM    -1  // DISABLED
+#define ENC_9_PARAM    4   // BRAIDS_AMP_ATTACK
+#define ENC_10_PARAM   5   // BRAIDS_AMP_DECAY
+#define ENC_11_PARAM   6   // BRAIDS_AMP_SUSTAIN
+#define ENC_13_PARAM   7   // BRAIDS_AMP_RELEASE
+#define ENC_14_PARAM   11  // BRAIDS_FILT_ATTACK
+#define ENC_15_PARAM   12  // BRAIDS_FILT_DECAY
+#define ENC_16_PARAM   13  // BRAIDS_FILT_SUSTAIN
+#define ENC_17_PARAM   14  // BRAIDS_FILT_RELEASE
+#define ENC_18_PARAM   15  // BRAIDS_VOLUME
+#define ENC_19_PARAM   -1  // DISABLED
+#define ENC_20_PARAM   -1  // DISABLED
+#define ENC_21_PARAM   -1  // DISABLED
+#define ENC_22_PARAM   -1  // DISABLED
+#define ENC_23_PARAM   -1  // DISABLED
+
+// Menu Encoder Configuration
+#define MENU_ENCODER_PARAM  -1  // Menu-only
+
+#endif // PROJECT_MACRO
 
 // ============================================================================
-// Menu Encoder Parameter Configuration
+// DIN MIDI Configuration (shared across all projects)
 // ============================================================================
-// Set which parameter the menu encoder controls when NOT in menu mode
-// Use -1 for menu-only mode (turning encoder auto-enters menu, no button press needed)
-// Available FM parameters: 0-9 (Algorithm, Feedback, LFO Speed, LFO Pitch, LFO Amp,
-// Transpose, OP1 Level, OP2 Level, OP3 Level, OP4 Level)
-#define MENU_ENCODER_PARAM  -1  // Menu-only mode (auto-enter menu on turn)
-
-// EXAMPLES:
-// #define MENU_ENCODER_PARAM  0   // Algorithm (traditional - button press to enter menu)
-// #define MENU_ENCODER_PARAM  2   // LFO Speed (button press to enter menu)
-// #define MENU_ENCODER_PARAM  6   // OP1 Level (button press to enter menu)
-// #define MENU_ENCODER_PARAM  -1  // Menu-only (turn encoder to auto-enter menu)
-
-
-/*
- * EXAMPLE: DIN MIDI Pin Conflict Resolution
- * 
- * If you enable DIN MIDI, it uses pin 0 (Serial1 RX), which conflicts with ENC_3_CLK.
- * To resolve this, move enc3 to a different pin pair:
- * 
- * #define ENC_3_CLK    42     // Move enc3 to surface mount pins
- * #define ENC_3_DT     43     // (or any other available pins)
- * 
- * Then enable DIN MIDI below.
- */
-
-// TODO: Test DIN MIDI
-// Uncomment to enable DIN MIDI support (requires moving enc3 from pin 0)
-// #define ENABLE_DIN_MIDI
 
 /*
  * DIN MIDI Setup Instructions:
@@ -156,11 +396,11 @@
  * WIRING:
  * 1. Build MIDI input circuit: DIN connector → 6N138 optocoupler → 220Ω resistor
  * 2. Connect MIDI circuit output to Teensy Serial1 RX (Pin 0)
- * 3. IMPORTANT: Move enc3 (LFO Speed) CLK wire from Pin 0 to surface mount pin (42-47)
+ * 3. IMPORTANT: Move enc3 (Color/Range/etc) CLK wire from Pin 0 to surface mount pin (42-47)
  * 
  * USAGE:
  * - Install "MIDI Library" by Francois Best via Arduino Library Manager
- * - Uncomment #define ENABLE_DIN_MIDI above
+ * - Uncomment #define USE_DIN_MIDI above
  * - Can work with both USB Device MIDI (default) and USB Host MIDI
  * - Supports USB and DIN MIDI simultaneously
  * - Uses same MIDI channel setting from Settings menu

@@ -56,15 +56,19 @@ const char* PROJECT_SUBTITLE = "Macro Oscillator";
   #define OLED_RESET -1
 #endif
 
-#ifdef ENABLE_DIN_MIDI
-#include <MIDI.h>
-MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);
-#endif
+// ============================================================================
+// MIDI Setup
+// ============================================================================
 
 #ifdef USE_MIDI_HOST
-// USB Host MIDI device for external controllers
 USBHost myusb;
+USBHub hub1(myusb);
 MIDIDevice midi1(myusb);
+#endif
+
+#ifdef USE_DIN_MIDI
+#include <MIDI.h>
+MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);
 #endif
 
 // All 19 Mini-Teensy Encoders (using configurable pin definitions from config.h)
@@ -138,7 +142,15 @@ AudioEffectEnvelope      filtEnv[VOICES];        // Filter envelope per voice
 AudioFilterLadder        braidsFilter[VOICES];   // Moog-style ladder filter
 AudioMixer4              braidsMix1, braidsMix2; // First 4 voices, voices 4-5
 AudioMixer4              braidsFinalMix;          // Final mono mix of all voices
-AudioOutputUSB           usb1;
+
+#ifdef USE_USB_AUDIO
+AudioOutputUSB           usb1;                   // USB audio output (stereo)
+#endif
+
+#ifdef USE_TEENSY_DAC
+AudioOutputI2S           i2s1;                   // I2S DAC output (Teensy Audio Shield)
+AudioControlSGTL5000     sgtl5000_1;
+#endif
 
 // Audio connections - Polyphonic Braids chain with filter envelopes
 // Voice 0 connections
@@ -187,9 +199,16 @@ AudioConnection patchCord5_5(braidsFilter[5], 0, braidsMix2, 1);
 AudioConnection patchCord_mix1(braidsMix1, 0, braidsFinalMix, 0); // Voices 0-3
 AudioConnection patchCord_mix2(braidsMix2, 0, braidsFinalMix, 1); // Voices 4-5
 
-// Final mono-to-stereo output - same signal to both channels
+// Final output connections
+#ifdef USE_USB_AUDIO
 AudioConnection patchCord_finalL(braidsFinalMix, 0, usb1, 0); // Left channel
 AudioConnection patchCord_finalR(braidsFinalMix, 0, usb1, 1); // Right channel
+#endif
+
+#ifdef USE_TEENSY_DAC
+AudioConnection patchCord_finalL2(braidsFinalMix, 0, i2s1, 0); // Left channel
+AudioConnection patchCord_finalR2(braidsFinalMix, 0, i2s1, 1); // Right channel
+#endif
 
 // Control parameter names for menu display (removed Filter Mode)
 const char* controlNames[NUM_PARAMETERS] = {
@@ -247,6 +266,12 @@ float pitchWheelValue = 0.0;
 float modWheelValue = 0.0;
 int midiChannel = 0; // 0 = omni, 1-16 = specific channel
 
+// Display update tracking for MIDI CC changes
+int lastChangedParam = -1;
+float lastChangedValue = 0.0;
+String lastChangedName = "";
+bool parameterChanged = false;
+
 
 // LFO variables (Juno-style with separate depth controls)
 AudioSynthWaveformSine   lfo;             // LFO for modulation
@@ -256,6 +281,171 @@ float lfoColorDepth = 0.0;  // LFO>Color depth (0-1)
 float lfoPitchDepth = 0.0;  // LFO>Pitch depth (0-1)
 float lfoFilterDepth = 0.0; // LFO>Filter depth (0-1)
 float lfoVolumeDepth = 0.0; // LFO>Volume depth (0-1)
+
+// ============================================================================
+// Centralized MIDI Handler
+// ============================================================================
+
+void processMidiMessage(byte type, byte channel, byte data1, byte data2) {
+  // Filter by MIDI channel (0 = omni, 1-16 = specific channel)
+  if (midiChannel != 0 && channel != midiChannel) return;
+  
+  switch (type) {
+    case 0x90: // Note On (or Note Off with velocity 0)
+      if (data2 > 0) {
+        noteOn(data1, data2);
+      } else {
+        noteOff(data1);
+      }
+      break;
+      
+    case 0x80: // Note Off
+      noteOff(data1);
+      break;
+      
+    case 0xB0: // Control Change
+      handleControlChange(data1, data2);
+      break;
+      
+    case 0xC0: // Program Change
+      handleProgramChange(data1);
+      break;
+      
+    case 0xE0: // Pitch Bend
+      {
+        int pitchBendValue = (data2 << 7) | data1; // Combine MSB and LSB
+        pitchWheelValue = (pitchBendValue - 8192) / 8192.0;
+        // Apply pitch bend to all active voices
+        for (int v = 0; v < VOICES; v++) {
+          if (voices[v].active) {
+            int transposedNote = voices[v].note + (int)braidsParameters[3];
+            float pitchBend = pitchWheelValue * 2.0; // ±2 semitones
+            transposedNote += (int)pitchBend;
+            int pitch = transposedNote << 7;
+            braidsOsc[v].set_braids_pitch(pitch);
+          }
+        }
+      }
+      break;
+  }
+}
+
+void handleControlChange(int cc, int value) {
+  // Convert MIDI value (0-127) to parameter value (0.0-127.0)
+  float paramValue = (float)value;
+  
+  // Handle standard MIDI CCs first
+  if (cc == CC_MODWHEEL) {
+    modWheelValue = value / 127.0;
+    // Apply mod wheel to timbre parameter
+    float modAmount = modWheelValue * 32.0f;
+    updateBraidsParameter(1, constrain(braidsParameters[1] + modAmount, 0.0f, 127.0f));
+    
+    // Track mod wheel change for display
+    if (!inMenu) {
+      lastChangedParam = -1;  // Special flag for non-parameter controls
+      lastChangedName = "Mod Wheel";
+      lastChangedValue = value;  // Use raw 0-127 value for display
+      parameterChanged = true;
+    }
+    return;
+  }
+  
+  // Map CC numbers to Braids parameter indices
+  int paramIndex = -1;
+  
+  // if (cc == CC_SHAPE) paramIndex = 0;
+  // else if (cc == CC_TIMBRE) paramIndex = 1;
+  // else if (cc == CC_COLOR) paramIndex = 2;
+  // else if (cc == CC_COARSE) paramIndex = 3;
+  // else if (cc == CC_AMP_ATTACK) paramIndex = 4;
+  // else if (cc == CC_AMP_DECAY) paramIndex = 5;
+  // else if (cc == CC_AMP_SUSTAIN) paramIndex = 6;
+  // else if (cc == CC_AMP_RELEASE) paramIndex = 7;
+  // else if (cc == CC_FILTER_CUTOFF) paramIndex = 8;
+  // else if (cc == CC_FILTER_RES) paramIndex = 9;
+  // else if (cc == CC_FILTER_STR) paramIndex = 10;
+  // else if (cc == CC_FILT_ATTACK) paramIndex = 11;
+  // else if (cc == CC_FILT_DECAY) paramIndex = 12;
+  // else if (cc == CC_FILT_SUSTAIN) paramIndex = 13;
+  // else if (cc == CC_FILT_RELEASE) paramIndex = 14;
+  // else if (cc == CC_VOLUME) paramIndex = 15;
+  // else if (cc == CC_LFO_RATE) paramIndex = 16;
+  // else if (cc == CC_LFO_TIMBRE) paramIndex = 17;
+  // else if (cc == CC_LFO_COLOR) paramIndex = 18;
+  // else if (cc == CC_LFO_PITCH) paramIndex = 19;
+  // else if (cc == CC_LFO_FILTER) paramIndex = 20;
+  // else if (cc == CC_LFO_VOLUME) paramIndex = 21;
+
+
+  if (cc == CC_1_PARAM) paramIndex = ENC_1_PARAM;        // Shape
+  else if (cc == CC_2_PARAM) paramIndex = ENC_2_PARAM;   // Timber
+  else if (cc == CC_3_PARAM) paramIndex = ENC_3_PARAM;   //Color
+  else if (cc == CC_4_PARAM) paramIndex = ENC_4_PARAM;   //Coarse
+  else if (cc == CC_5_PARAM) paramIndex = ENC_5_PARAM;   //Amp Attack
+  else if (cc == CC_6_PARAM) paramIndex = ENC_6_PARAM;   //Amp Decay
+  else if (cc == CC_7_PARAM) paramIndex = ENC_7_PARAM;   //Amp Sustain
+  else if (cc == CC_8_PARAM) paramIndex = ENC_8_PARAM;   //Amp Release
+  else if (cc == CC_9_PARAM) paramIndex = ENC_9_PARAM;   //Cutoff
+  else if (cc == CC_10_PARAM) paramIndex = ENC_10_PARAM; //Res
+  else if (cc == CC_11_PARAM) paramIndex = ENC_11_PARAM; //Filter Strength
+  else if (cc == CC_12_PARAM) paramIndex = MENU_ENCODER_PARAM;
+  else if (cc == CC_13_PARAM) paramIndex = ENC_13_PARAM; //Filter Attack
+  else if (cc == CC_14_PARAM) paramIndex = ENC_14_PARAM; //Filter Decay
+  else if (cc == CC_15_PARAM) paramIndex = ENC_15_PARAM; //Filter Sustain
+  else if (cc == CC_16_PARAM) paramIndex = ENC_16_PARAM; //Filter Release
+  else if (cc == CC_17_PARAM) paramIndex = ENC_17_PARAM; //Volume
+  else if (cc == CC_18_PARAM) paramIndex = ENC_18_PARAM; //LFO Rate
+
+  
+  // Update parameter if mapped
+  if (paramIndex >= 0) {
+    updateBraidsParameter(paramIndex, paramValue);
+    
+    // Track parameter change for display
+    if (!inMenu) {
+      lastChangedParam = paramIndex;
+      lastChangedValue = paramValue;
+      lastChangedName = controlNames[paramIndex];
+      parameterChanged = true;
+    }
+  }
+}
+
+void handleProgramChange(int program) {
+  // Map program change 0-127 to Braids presets 0-7
+  int presetIndex = program % NUM_PRESETS;
+  loadPreset(presetIndex);
+  Serial.print("Program change to preset: ");
+  Serial.println(presetIndex);
+}
+
+// Display feedback function for MIDI CC changes
+void updateParameterDisplay(int paramIndex, float value) {
+  String line1 = controlNames[paramIndex];
+  String line2 = "";
+  
+  // Special display formatting for certain parameters
+  if (paramIndex == 0) { // Shape
+    int shapeIndex = (int)value;
+    line2 = String(shapeNames[shapeIndex]) + " (" + String(shapeIndex) + ")";
+  } else if (paramIndex == 3) { // Coarse transpose
+    int transpose = (int)value;
+    if (transpose >= 0) {
+      line2 = "+" + String(transpose);
+    } else {
+      line2 = String(transpose);
+    }
+  } else if (paramIndex == 16) { // LFO Rate
+    float rate = value * 0.2; // Scale 0-127 to 0-25.4 Hz range
+    line2 = String(rate, 1) + " Hz";
+  } else {
+    int displayValue = (int)value;
+    line2 = String(displayValue);
+  }
+  
+  displayText(line1, line2);
+}
 
 #ifdef ENABLE_DIN_MIDI
 void OnNoteOn(byte channel, byte note, byte velocity) {
@@ -323,8 +513,16 @@ void OnUSBHostPitchBend(byte channel, int bend) {
 #endif
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
+  
+  // Audio setup
   AudioMemory(60); // Braids needs more memory due to wavetables
+  
+#ifdef USE_TEENSY_DAC
+  sgtl5000_1.enable();
+  sgtl5000_1.volume(0.8);
+  Serial.println("Teensy Audio Shield initialized");
+#endif
 
   // Initialize Braids oscillators
   for (int v = 0; v < VOICES; v++) {
@@ -364,20 +562,31 @@ void setup() {
   braidsFinalMix.gain(0, braidsParameters[15] / 127.0);
   braidsFinalMix.gain(1, braidsParameters[15] / 127.0);
 
-  // USB Device MIDI is initialized automatically
-#ifdef USE_USB_DEVICE_MIDI
-  Serial.println("USB Device MIDI enabled");
+#ifdef USE_MIDI_HOST
+  myusb.begin();
+  Serial.println("USB Host MIDI initialized");
 #endif
 
-  // USB Host MIDI support disabled - would need additional MIDI functions
-  // TODO: Implement USB Host MIDI support if needed
-  
-#ifdef ENABLE_DIN_MIDI
+#ifdef USE_DIN_MIDI
   MIDI.begin(MIDI_CHANNEL_OMNI);
-  MIDI.setHandleNoteOn(OnNoteOn);
-  MIDI.setHandleNoteOff(OnNoteOff);
-  MIDI.setHandleControlChange(OnControlChange);
-  MIDI.setHandlePitchBend(OnPitchBend);
+  MIDI.setHandleNoteOn([](byte channel, byte note, byte velocity) {
+    processMidiMessage(0x90, channel, note, velocity);
+  });
+  MIDI.setHandleNoteOff([](byte channel, byte note, byte velocity) {
+    processMidiMessage(0x80, channel, note, velocity);
+  });
+  MIDI.setHandleControlChange([](byte channel, byte cc, byte value) {
+    processMidiMessage(0xB0, channel, cc, value);
+  });
+  MIDI.setHandleProgramChange([](byte channel, byte program) {
+    processMidiMessage(0xC0, channel, program, 0);
+  });
+  MIDI.setHandlePitchBend([](byte channel, int bend) {
+    byte data1 = bend & 0x7F;       // LSB
+    byte data2 = (bend >> 7) & 0x7F; // MSB
+    processMidiMessage(0xE0, channel, data1, data2);
+  });
+  Serial.println("DIN MIDI initialized");
 #endif
   
   pinMode(MENU_ENCODER_SW, INPUT_PULLUP);
@@ -451,6 +660,41 @@ void setup() {
   display.drawStr(3, 40, PROJECT_SUBTITLE);
   display.sendBuffer();
 #endif
+  
+  Serial.println("MacroOscillator-Teensy Synth initialized");
+  Serial.println("Parameters: 22 Braids synthesizer parameters");
+  
+#ifdef USE_USB_AUDIO
+  Serial.println("Audio output: USB Audio");
+#endif
+#ifdef USE_TEENSY_DAC
+  Serial.println("Audio output: Teensy Audio Shield (I2S)");
+#endif
+
+  Serial.println("MIDI CC mapping:");
+  Serial.print("  Shape: CC"); Serial.println(CC_SHAPE);
+  Serial.print("  Timbre: CC"); Serial.println(CC_TIMBRE);
+  Serial.print("  Color: CC"); Serial.println(CC_COLOR);
+  Serial.print("  Coarse: CC"); Serial.println(CC_COARSE);
+  Serial.print("  Amp Attack: CC"); Serial.println(CC_AMP_ATTACK);
+  Serial.print("  Amp Decay: CC"); Serial.println(CC_AMP_DECAY);
+  Serial.print("  Amp Sustain: CC"); Serial.println(CC_AMP_SUSTAIN);
+  Serial.print("  Amp Release: CC"); Serial.println(CC_AMP_RELEASE);
+  Serial.print("  Filter Cutoff: CC"); Serial.println(CC_FILTER_CUTOFF);
+  Serial.print("  Filter Resonance: CC"); Serial.println(CC_FILTER_RES);
+  Serial.print("  Filter Strength: CC"); Serial.println(CC_FILTER_STR);
+  Serial.print("  Filter Attack: CC"); Serial.println(CC_FILT_ATTACK);
+  Serial.print("  Filter Decay: CC"); Serial.println(CC_FILT_DECAY);
+  Serial.print("  Filter Sustain: CC"); Serial.println(CC_FILT_SUSTAIN);
+  Serial.print("  Filter Release: CC"); Serial.println(CC_FILT_RELEASE);
+  Serial.print("  Volume: CC"); Serial.println(CC_VOLUME);
+  Serial.print("  LFO Rate: CC"); Serial.println(CC_LFO_RATE);
+  Serial.print("  LFO to Timbre: CC"); Serial.println(CC_LFO_TIMBRE);
+  Serial.print("  LFO to Color: CC"); Serial.println(CC_LFO_COLOR);
+  Serial.print("  LFO to Pitch: CC"); Serial.println(CC_LFO_PITCH);
+  Serial.print("  LFO to Filter: CC"); Serial.println(CC_LFO_FILTER);
+  Serial.print("  LFO to Volume: CC"); Serial.println(CC_LFO_VOLUME);
+  Serial.println("Program changes: 0-7 for preset selection");
   
   delay(2000);
   updateDisplay();
@@ -900,51 +1144,27 @@ void loop() {
     uint8_t data1 = usbMIDI.getData1();
     uint8_t data2 = usbMIDI.getData2();
     
-    // Filter by MIDI channel (0 = omni mode, receive all channels)
-    if (midiChannel != 0 && channel != midiChannel) {
-      continue; // Skip messages not on our channel
-    }
-    
-    if (type == usbMIDI.NoteOn && data2 > 0) {
-      noteOn(data1, data2);
-    } else if (type == usbMIDI.NoteOff || (type == usbMIDI.NoteOn && data2 == 0)) {
-      noteOff(data1);
+    // Convert usbMIDI types to standard MIDI message types
+    if (type == usbMIDI.NoteOn) {
+      processMidiMessage(0x90, channel, data1, data2);
+    } else if (type == usbMIDI.NoteOff) {
+      processMidiMessage(0x80, channel, data1, data2);
     } else if (type == usbMIDI.ControlChange) {
-      // Handle MIDI Control Change messages
-      if (data1 == 1) { // Mod wheel (CC#1)
-        modWheelValue = data2 / 127.0;
-        // Apply mod wheel to timbre parameter
-        float modAmount = modWheelValue * 32.0f; // Mod depth for 0-127 range
-        updateBraidsParameter(1, constrain(braidsParameters[1] + modAmount, 0.0f, 127.0f));
-      }
-    } else if (type == usbMIDI.PitchBend) {
-      // Handle MIDI Pitch Bend messages
-      int16_t bendValue = (data1) | (data2 << 7); // Reconstruct 14-bit value
-      pitchWheelValue = (bendValue - 8192) / 8192.0;
-      // Apply pitch bend to all active voices
-      for (int v = 0; v < VOICES; v++) {
-        if (voices[v].active) {
-          float pitchBend = pitchWheelValue * 2.0; // ±2 semitones
-          int transposedNote = voices[v].note + (int)pitchBend;
-          int pitch = transposedNote << 7; // Simple left shift by 7 bits
-          braidsOsc[v].set_braids_pitch(pitch);
-        }
-      }
+      processMidiMessage(0xB0, channel, data1, data2);
     } else if (type == usbMIDI.ProgramChange) {
-      // Map program change 0-127 to Braids presets 0-7
-      int presetNum = data1 % NUM_PRESETS;
-      loadPreset(presetNum);
+      processMidiMessage(0xC0, channel, data1, data2);
+    } else if (type == usbMIDI.PitchBend) {
+      processMidiMessage(0xE0, channel, data1, data2);
     }
   }
 #endif
 
 #ifdef USE_MIDI_HOST
-  // Additionally process USB Host MIDI messages (if enabled)
   myusb.Task();
   midi1.read();
 #endif
   
-#ifdef ENABLE_DIN_MIDI
+#ifdef USE_DIN_MIDI
   MIDI.read();
 #endif
   
@@ -954,6 +1174,18 @@ void loop() {
   // Update LFO modulation (matching Mini-Teensy)
   updateLFOModulation();
   
+  // Update display if parameter changed during this loop iteration
+  if (parameterChanged && !inMenu) {
+    if (lastChangedParam >= 0) {
+      // Use the specialized display function for MacroOscillator
+      updateParameterDisplay(lastChangedParam, lastChangedValue);
+    } else {
+      // For mod wheel and other non-parameter controls
+      String line2 = String((int)lastChangedValue);
+      displayText(lastChangedName, line2);
+    }
+    parameterChanged = false;
+  }
   
   // Minimal serial input check for performance
   if (Serial.available()) {

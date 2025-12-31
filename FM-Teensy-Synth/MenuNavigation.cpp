@@ -33,6 +33,7 @@ extern int menuIndex;
 extern float allParameterValues[NUM_PARAMETERS];
 extern const char* controlNames[];
 extern int midiChannel;
+extern bool parameterChanged;
 
 // DX7 bank/patch selection
 extern int currentDX7Bank;
@@ -147,11 +148,15 @@ void updateDisplay() {
           break;
       }
     }
+    displayText(line1, line2);
   } else {
-    line1 = "FM Synth";
-    line2 = "Press for menu";
+    // Only show default message if no parameter was recently changed via MIDI
+    if (!parameterChanged) {
+      line1 = "FM Synth";
+      line2 = "Press for menu";
+      displayText(line1, line2);
+    }
   }
-  displayText(line1, line2);
 }
 
 int getParameterIndex(MenuState state) {
@@ -581,5 +586,5 @@ void resetEncoderBaselines() {
 
 void updateParameterFromMenu(int paramIndex, float val) {
   updateSynthParameter(paramIndex, val);
-  updateDisplay();
+  // Display update removed - now handled once per loop in main()
 }

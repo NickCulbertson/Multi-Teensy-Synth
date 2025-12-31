@@ -54,8 +54,6 @@ void handleEncoderChange(int encoderIndex, int change);
 void updateEncoderParameter(int paramIndex, int change);
 void updateParameterFromMenu(int paramIndex, float value);
 void loadPreset(int presetIndex);
-
-// Functions implemented in main sketch
-void resetEncoderBaselines();
+int getNumPresets();
 
 #endif // MENU_NAVIGATION_H

@@ -188,7 +188,6 @@ void updateParameterFromMenu(int paramIndex, float val);
 void updateEncoderParameter(int paramIndex, int change);
 
 // Utility functions
-void resetEncoderBaselines();
 
 // Preset functions
 void loadPreset(int presetIndex);

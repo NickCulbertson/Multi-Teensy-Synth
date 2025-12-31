@@ -14,7 +14,7 @@
 // #define PROJECT_EPIANO
 // #define PROJECT_DCO  
 // #define PROJECT_FM
-#define PROJECT_MINI
+// #define PROJECT_MINI
 // #define PROJECT_MACRO
 
 // ============================================================================
