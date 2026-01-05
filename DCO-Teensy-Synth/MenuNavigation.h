@@ -107,5 +107,6 @@ void updateEncoderParameter(int paramIndex, int change);
 // Preset functions
 void loadPreset(int presetIndex);
 void printCurrentPresetValues();
+const char* getPresetName(int presetIndex);
 
 #endif // MENU_NAVIGATION_H

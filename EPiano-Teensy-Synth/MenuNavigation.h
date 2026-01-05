@@ -62,5 +62,6 @@ void updateParameterFromMenu(int paramIndex, float value);
 void loadPreset(int presetIndex);
 int getNumPresets();
 void printCurrentPresetValues();
+const char* getPresetName(int presetIndex);
 
 #endif // MENU_NAVIGATION_H

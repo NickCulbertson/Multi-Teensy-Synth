@@ -81,10 +81,8 @@ float lastChangedValue = 0.0;
 String lastChangedName = "";
 bool parameterChanged = false;
 
-// Parameter names for display (declared in MenuNavigation.cpp)
 extern const char* controlNames[];
 
-// EPiano presets array (declared in MenuNavigation.cpp)
 extern const EPianoPreset epianoPresets[];
 
 
@@ -212,9 +210,11 @@ void setupEncoders() {
   encoders[6] = new Encoder(ENC_6_CLK, ENC_6_DT);   // LFO Rate
   encoders[7] = new Encoder(ENC_7_CLK, ENC_7_DT);   // Velocity Sense
   encoders[8] = new Encoder(ENC_8_CLK, ENC_8_DT);   // Stereo
-  encoders[9] = new Encoder(ENC_9_CLK, ENC_9_DT);   // Master Tune
-  encoders[10] = new Encoder(ENC_10_CLK, ENC_10_DT); // Detune
-  encoders[11] = new Encoder(ENC_11_CLK, ENC_11_DT); // Overdrive
+  encoders[9] = new Encoder(ENC_9_CLK, ENC_9_DT);   // Polyph0ny
+  encoders[10] = new Encoder(ENC_10_CLK, ENC_10_DT); // Master Tune
+  encoders[11] = new Encoder(ENC_11_CLK, ENC_11_DT); // Detune
+  encoders[13] = new Encoder(ENC_17_CLK, ENC_17_DT); // Overdrive
+
   // Encoders 13-20 are disabled (mapped to -1), so we don't initialize them
 }
 
@@ -363,7 +363,7 @@ void handleProgramChange(int program) {
     
     // Update display to show preset name
     String line1 = "Preset " + String(program + 1);
-    String line2 = String(epianoPresets[program].name);
+    String line2 = String(getPresetName(program));
     displayText(line1, line2);
   }
 }

@@ -598,11 +598,9 @@ void handleProgramChange(int program) {
     Serial.println(program);
     
     // Update display to show preset name
-    if (!inMenu) {
-      String line1 = "Preset " + String(program + 1);
-      String line2 = String(presets[program].name);
-      displayText(line1, line2);
-    }
+    String line1 = "Preset " + String(program + 1);
+    String line2 = String(getPresetName(program));
+    displayText(line1, line2);
   }
 }
 

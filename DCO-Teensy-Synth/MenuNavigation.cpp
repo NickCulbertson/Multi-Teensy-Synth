@@ -948,3 +948,10 @@ void printCurrentPresetValues() {
   
   Serial.println("Type 'r' in Serial Monitor to reset encoder baselines to current values");
 }
+
+const char* getPresetName(int presetIndex) {
+  if (presetIndex >= 0 && presetIndex < NUM_PRESETS) {
+    return presets[presetIndex].name;
+  }
+  return "Unknown";
+}

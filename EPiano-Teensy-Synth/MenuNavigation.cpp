@@ -390,4 +390,11 @@ void printCurrentPresetValues() {
   Serial.println("=== DEBUG END ===\n");
 }
 
+const char* getPresetName(int presetIndex) {
+  if (presetIndex >= 0 && presetIndex < getNumPresets()) {
+    return epianoPresets[presetIndex].name;
+  }
+  return "Unknown";
+}
+
 // resetEncoderBaselines() is implemented in main sketch

@@ -4,9 +4,6 @@
 #include "config.h"
 #include <Arduino.h>
 
-// Note: NUM_PARAMETERS and NUM_PRESETS are expected to be defined
-// in the main project file before including this header
-
 // ============================================================================
 // Braids Parameter Mapping Enums
 // ============================================================================
@@ -19,14 +16,14 @@ enum BraidsParam {
   BRAIDS_AMP_DECAY = 5,
   BRAIDS_AMP_SUSTAIN = 6,
   BRAIDS_AMP_RELEASE = 7,
-  BRAIDS_FILTER_CUTOFF = 8,     // Removed Filter Mode, moved cutoff up
+  BRAIDS_FILTER_CUTOFF = 8,     
   BRAIDS_FILTER_RESONANCE = 9,
   BRAIDS_FILTER_STRENGTH = 10,
   BRAIDS_FILTER_ATTACK = 11,
   BRAIDS_FILTER_DECAY = 12,
   BRAIDS_FILTER_SUSTAIN = 13,
   BRAIDS_FILTER_RELEASE = 14,
-  BRAIDS_VOLUME = 15,           // Moved up due to removed Filter Mode
+  BRAIDS_VOLUME = 15,         
   BRAIDS_NONE = -1  // Use this to disable an encoder
 };
 
@@ -119,6 +116,7 @@ void resetEncoderBaselines();
 // Preset functions
 void loadPreset(int presetIndex);
 void printCurrentPresetValues();
+const char* getPresetName(int presetIndex);
 
 // Parameter adjustment functions
 void updateEncoderParameter(int paramIndex, int change);

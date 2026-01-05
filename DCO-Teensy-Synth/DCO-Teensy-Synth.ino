@@ -77,7 +77,7 @@ long lastEncoderValues[20] = {0};
 
 float allParameterValues[NUM_PARAMETERS] = {
   0.508, 0.508, 0.508, 0.149, 0.000, 0.034, 0.000, 0.000, 0.008, 0.000,
-  0.010, 0.149, 0.023, 1.000, 0.000, 0.282, 0.500, 0.040, 0.000
+  0.010, 0.149, 0.023, 1.000, 0.000, 0.282, 0.500, 0.040, 0.000,
   0.176, 0.433, 0.020, 0.250, 0.000, 0.000, 0.500, 0.000, 0.000, 0.000, 0.000, 0.000
 };
 
@@ -505,7 +505,7 @@ void handleProgramChange(int program) {
     // Update display to show preset name
     if (!inMenu) {
       String line1 = "Preset " + String(program + 1);
-      String line2 = String(presets[program].name);
+      String line2 = String(getPresetName(program));
       displayText(line1, line2);
     }
   }

@@ -4,14 +4,12 @@
  * using the Mutable Instruments Braids sound engine with intuitive menu control.
  */
 
-#define NUM_PARAMETERS 22  // Braids with Moog filter (removed Filter Mode, using fixed lowpass)
-#define NUM_PRESETS 12      // Braids has 8 built-in presets
-#define VOICES 6           // Braids supports up to 6 voices (resource intensive)
+#define NUM_PARAMETERS 22 
+#define NUM_PRESETS 12    
+#define VOICES 6     
 
 #include "config.h"
 #include "MenuNavigation.h"
-
-
 
 // Project strings
 const char* PROJECT_NAME = "MacroOSC Synth";
@@ -22,7 +20,7 @@ const char* PROJECT_SUBTITLE = "Macro Oscillator";
 #include <Wire.h>
 #include <Encoder.h>
 
-// Braids Macro-Oscillator Engine
+// Braids MacroOSC Engine
 #include "src/synth_braids.h"
 
 #ifdef USE_LCD_DISPLAY
@@ -378,7 +376,7 @@ void handleProgramChange(int program) {
   // Update display to show preset name
   if (!inMenu) {
     String line1 = "Preset " + String(presetIndex + 1);
-    String line2 = String(presets[presetIndex].name);
+    String line2 = String(getPresetName(presetIndex));
     displayText(line1, line2);
   }
 }
