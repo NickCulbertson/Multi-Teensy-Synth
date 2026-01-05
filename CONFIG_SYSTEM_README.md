@@ -10,25 +10,23 @@ Run the deployment script to copy the master config to all projects:
 ./deploy_config.sh
 ```
 
-### 2. Update Your Code
-Each project now needs to use project-specific CC defines. Here's what to change:
+**Note:** The script automatically detects its location, so it works on any machine. Just make sure you're in the Multi-Teensy-Synth root directory when running it.
 
-#### Before (Old System):
+### 2. Code Structure
+Each project now uses a unified `CC_X_PARAM` naming system:
+
 ```cpp
-if (cc == CC_OSC1_RANGE) paramIndex = 0;
-else if (cc == CC_OSC2_RANGE) paramIndex = 1;
+// All projects now use:
+if (cc == CC_1_PARAM) paramIndex = 0;        // Maps to first parameter
+else if (cc == CC_2_PARAM) paramIndex = 1;   // Maps to second parameter
+else if (cc == CC_3_PARAM) paramIndex = 2;   // Maps to third parameter
+// etc...
 ```
 
-#### After (New System):
-```cpp
-// Mini-Teensy-Synth example:
-if (cc == CC_MINI_OSC1_RANGE) paramIndex = 0;
-else if (cc == CC_MINI_OSC2_RANGE) paramIndex = 1;
-
-// DCO-Teensy-Synth example:
-if (cc == CC_DCO_OSC1_RANGE) paramIndex = 0;
-else if (cc == CC_DCO_OSC2_RANGE) paramIndex = 1;
-```
+The actual CC numbers are automatically assigned by project:
+- **Mini-Teensy**: `CC_1_PARAM` = CC 90, `CC_2_PARAM` = CC 91, etc.
+- **DCO-Teensy**: `CC_1_PARAM` = CC 20, `CC_2_PARAM` = CC 21, etc.  
+- **MacroOscillator**: `CC_1_PARAM` = CC 73, `CC_2_PARAM` = CC 75, etc.
 
 ## 📋 MIDI CC Assignments
 

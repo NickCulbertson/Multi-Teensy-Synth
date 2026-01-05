@@ -5,8 +5,17 @@
 
 echo "🚀 Deploying master config to all Multi-Teensy-Synth projects..."
 
-# Base directory
-BASE_DIR="/Users/nickculbertson/Documents/Multi-Teensy-Synth"
+# Base directory - automatically detect script location
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Check if config_master.h exists
+if [ ! -f "$BASE_DIR/config_master.h" ]; then
+    echo "❌ Error: config_master.h not found in $BASE_DIR"
+    echo "Make sure you're running this script from the Multi-Teensy-Synth root directory."
+    exit 1
+fi
+
+echo "📂 Working directory: $BASE_DIR"
 
 # Function to deploy config to a specific project
 deploy_to_project() {
@@ -37,19 +46,7 @@ deploy_to_project "EPiano-Teensy-Synth" "PROJECT_EPIANO" "EPiano-Teensy-Synth"
 deploy_to_project "DCO-Teensy-Synth" "PROJECT_DCO" "DCO-Teensy-Synth"  
 deploy_to_project "FM-Teensy-Synth" "PROJECT_FM" "FM-Teensy-Synth"
 deploy_to_project "Mini-Teensy-Synth" "PROJECT_MINI" "Mini-Teensy-Synth"
-deploy_to_project "MacroOscillator-Teensy-Synth" "PROJECT_MACRO" "MacroOscillator-Teensy-Synth"
+deploy_to_project "MacroOSC-Teensy-Synth" "PROJECT_MACRO" "MacroOSC-Teensy-Synth"
 
 echo ""
 echo "🎉 Configuration deployment complete!"
-echo ""
-echo "📋 MIDI CC Ranges assigned:"
-echo "   • EPiano: CC 70-89"
-echo "   • DCO:    CC 20-49"  
-echo "   • FM:     CC 50-69"
-echo "   • Mini:   CC 90-119"
-echo "   • Macro:  CC 20-49 (separate project)"
-echo ""
-echo "📝 Next steps:"
-echo "1. Update your .ino files to use the new CC defines (e.g., CC_MINI_OSC1_RANGE instead of CC_OSC1_RANGE)"
-echo "2. Test each project to ensure MIDI CC mappings work correctly"
-echo "3. Update any hardcoded CC numbers in your MIDI controller setup"

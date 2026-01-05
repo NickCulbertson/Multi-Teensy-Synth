@@ -5,7 +5,7 @@
 #define VOICES 16
 
 #include "MenuNavigation.h"
-#include "dx7_roms_unpacked.h"
+#include "roms_unpacked.h"
 #include <Arduino.h>
 #include <String.h>
 #include <Encoder.h>
@@ -35,10 +35,9 @@ extern const char* controlNames[];
 extern int midiChannel;
 extern bool parameterChanged;
 
-// DX7 bank/patch selection
-extern int currentDX7Bank;
-extern int dx7BankIndex;
-extern int dx7PatchIndex;
+extern int currentBank;
+extern int BankIndex;
+extern int PatchIndex;
 
 const char* parentMenuItems[] = {"Presets", "Parameters", "Settings", "< Exit"};
 const char* fmMenuItems[] = {"Algorithm", "Feedback", "LFO Speed", "Master Vol", "OP1 Level", "OP2 Level", "OP3 Level", "OP4 Level", "OP5 Level", "OP6 Level", "< Back"};
@@ -51,8 +50,7 @@ extern Encoder enc1, enc2, enc3, enc4, enc5, enc6, enc7, enc8, enc9, enc10, enc1
 extern void updateSynthParameter(int paramIndex, float val);
 extern const int encoderMapping[19];
 
-// Import DX7 ROM data for preset names
-extern const char* dx7BankNames[8];
+extern const char* BankNames[8];
 extern uint8_t progmem_bank[8][32][156];
 
 void displayText(String line1, String line2) {
@@ -88,25 +86,29 @@ void updateDisplay() {
   String line2 = "";
   
   if (inMenu) {
-    if (currentMenuState == DX7_BANKS) {
+    if (currentMenuState == BANKS) {
       // Bank selection menu
-      line1 = "DX7 Banks";
-      if (dx7BankIndex < NUM_DX7_BANKS) {
-        line2 = String(dx7BankIndex + 1) + ". " + String(dx7BankNames[dx7BankIndex]);
+      line1 = "Banks";
+      if (BankIndex < NUM_BANKS) {
+        line2 = String(BankIndex + 1) + ". " + String(BankNames[BankIndex]);
       } else {
         line2 = "< Back";
       }
-    } else if (currentMenuState == DX7_PATCHES) {
+    } else if (currentMenuState == PATCHES) {
       // Patch selection menu
-      line1 = String(dx7BankNames[currentDX7Bank]) + " Patches";
-      if (dx7PatchIndex == 32) {
+      line1 = String(BankNames[currentBank]) + " Patches";
+      if (PatchIndex == 32) {
         line2 = "< Back";
       } else {
         // Extract and display patch name being browsed
         char voice_name[11];
         memset(voice_name, 0, 11);
-        memcpy(voice_name, &progmem_bank[currentDX7Bank][dx7PatchIndex][144], 10);
-        line2 = String(dx7PatchIndex + 1) + ". " + String(voice_name);
+        memcpy(voice_name, &progmem_bank[currentBank][PatchIndex][144], 10);
+        // Clean up non-printable characters
+        for (int i = 0; i < 10; i++) {
+          if (voice_name[i] < 32 || voice_name[i] > 126) voice_name[i] = ' ';
+        }
+        line2 = String(PatchIndex + 1) + ". " + String(voice_name).trim();
       }
     } else {
       switch(currentMenuState) {
@@ -194,24 +196,24 @@ void handleEncoder() {
     }
     
     if (inMenu) {
-      if (currentMenuState == DX7_BANKS) {
-        // Navigate banks (0 to NUM_DX7_BANKS-1, then Back)
+      if (currentMenuState == BANKS) {
+        // Navigate banks (0 to NUM_BANKS-1, then Back)
         if (newMenuValue > oldMenuValue) {
-          dx7BankIndex++;
-          if (dx7BankIndex > NUM_DX7_BANKS) dx7BankIndex = 0; // 0 to NUM_DX7_BANKS-1, then Back
+          BankIndex++;
+          if (BankIndex > NUM_BANKS) BankIndex = 0; // 0 to NUM_BANKS-1, then Back
         } else {
-          dx7BankIndex--;
-          if (dx7BankIndex < 0) dx7BankIndex = NUM_DX7_BANKS;
+          BankIndex--;
+          if (BankIndex < 0) BankIndex = NUM_BANKS;
         }
         updateDisplay();
-      } else if (currentMenuState == DX7_PATCHES) {
+      } else if (currentMenuState == PATCHES) {
         // Navigate patches (0-31, then Back)
         if (newMenuValue > oldMenuValue) {
-          dx7PatchIndex++;
-          if (dx7PatchIndex > 32) dx7PatchIndex = 0; // 0-31=patches, 32=Back
+          PatchIndex++;
+          if (PatchIndex > 32) PatchIndex = 0; // 0-31=patches, 32=Back
         } else {
-          dx7PatchIndex--;
-          if (dx7PatchIndex < 0) dx7PatchIndex = 32;
+          PatchIndex--;
+          if (PatchIndex < 0) PatchIndex = 32;
         }
         updateDisplay();
       } else if (getParameterIndex(currentMenuState) >= 0) {
@@ -270,25 +272,25 @@ void handleEncoder() {
       menuIndex = 0;
             printCurrentPresetValues();
       updateDisplay();
-    } else if (currentMenuState == DX7_BANKS) {
-      if (dx7BankIndex == NUM_DX7_BANKS) {
+    } else if (currentMenuState == BANKS) {
+      if (BankIndex == NUM_BANKS) {
         // Back button pressed
         currentMenuState = PARENT_MENU;
         menuIndex = 0; // Return to Presets position
       } else {
         // Bank selected, go to patch selection
-        currentDX7Bank = dx7BankIndex;
-        currentMenuState = DX7_PATCHES;
-        dx7PatchIndex = 0;
+        currentBank = BankIndex;
+        currentMenuState = PATCHES;
+        PatchIndex = 0;
       }
       updateDisplay();
-    } else if (currentMenuState == DX7_PATCHES) {
-      if (dx7PatchIndex == 32) {
+    } else if (currentMenuState == PATCHES) {
+      if (PatchIndex == 32) {
         // Back button pressed, return to bank selection
-        currentMenuState = DX7_BANKS;
+        currentMenuState = BANKS;
       } else {
         // Patch selected, load it and stay in patch menu
-        loadDX7Preset(dx7PatchIndex);
+        loadPreset(PatchIndex);
       }
       updateDisplay();
     } else {
@@ -308,8 +310,8 @@ void navigateMenuForward() {
   switch(currentMenuState) {
     case PARENT_MENU:
       if (menuIndex == 0) {
-        currentMenuState = DX7_BANKS;
-        dx7BankIndex = 0;
+        currentMenuState = BANKS;
+        BankIndex = 0;
         return; 
       }
       else if (menuIndex == 1) currentMenuState = FM_MENU;
@@ -356,8 +358,8 @@ void incrementMenuIndex() {
       menuIndex++;
       if (menuIndex > 3) menuIndex = 0; // FM parent menu: Presets, Parameters, Settings, Exit
       break;
-    case DX7_BANKS:
-    case DX7_PATCHES:
+    case BANKS:
+    case PATCHES:
       // These are handled by encoder movement, not menuIndex
       break;
     case FM_MENU:
@@ -379,8 +381,8 @@ void decrementMenuIndex() {
       menuIndex--;
       if (menuIndex < 0) menuIndex = 3; // FM parent menu: Presets, Parameters, Settings, Exit
       break;
-    case DX7_BANKS:
-    case DX7_PATCHES:
+    case BANKS:
+    case PATCHES:
       // These are handled by encoder movement, not menuIndex
       break;
     case FM_MENU:
@@ -413,12 +415,12 @@ void navigateMenuBackward() {
 
 void backMenuAction() {
   switch(currentMenuState) {
-    case DX7_BANKS:
+    case BANKS:
       currentMenuState = PARENT_MENU;
       menuIndex = 0; // Return to Presets position
       break;
-    case DX7_PATCHES:
-      currentMenuState = DX7_BANKS; // Go back to bank selection
+    case PATCHES:
+      currentMenuState = BANKS; // Go back to bank selection
       break;
     case FM_ALGORITHM:
     case FM_FEEDBACK:
@@ -459,18 +461,6 @@ void backMenuAction() {
 }
 
 void printCurrentPresetValues() {
-  // Serial.println("\n=== CURRENT FM PRESET DEBUG ===");
-  // Serial.print("Active Preset: ");
-  // Serial.print(currentPreset + 1);
-  // Serial.print(" (");
-  
-  // // Extract patch name for display
-  // char voice_name[11];
-  // memset(voice_name, 0, 11);
-  // memcpy(voice_name, &progmem_bank[currentDX7Bank][currentPreset][144], 10);
-  // Serial.print(voice_name);
-  // Serial.println(")");
-  
   Serial.println("\nCurrent Parameter Values:");
   Serial.print("{");
   for (int i = 0; i < NUM_PARAMETERS; i++) {
@@ -505,9 +495,6 @@ void printCurrentPresetValues() {
     }
   }
   Serial.println("=============================\n");
-  
-  Serial.println("NOTE: FM uses DX7 ROM presets - parameter array is for real-time control only");
-  Serial.println("Type 'r' in Serial Monitor to reset encoder baselines to current values");
 }
 
 
@@ -517,10 +504,10 @@ void updateEncoderParameter(int paramIndex, int change) {
   float increment = 1.0/128.0; // Standard increment
   
   // Special increments for specific parameters
-  if (paramIndex == 0) { // Algorithm - larger steps for 32 values
-    increment = 1.0/32.0;
-  } else if (paramIndex == 1) { // Feedback - larger steps for 8 values
-    increment = 1.0/8.0;
+  if (paramIndex == 0) { // Algorithm - 32 steps (0-31)
+    increment = 1.0/31.0;  // 31 steps to cover 0.0 to 1.0
+  } else if (paramIndex == 1) { // Feedback - 8 steps (0-7) 
+    increment = 1.0/7.0;   // 7 steps to cover 0.0 to 1.0
   } else if (paramIndex == 3) { // Master Volume - fine steps for smooth volume control
     increment = 1.0/200.0;
   }

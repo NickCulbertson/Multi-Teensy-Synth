@@ -2,21 +2,11 @@
  * DCO-Teensy Synth v1.0
  * A 6-voice polyphonic virtual analog synthesizer built with the Teensy 4.1 microcontroller, 
  * inspired by the classic Roland Juno-60. Features analog-style synthesis with chorus,
- * high-pass filter, and classic Juno sound characteristics.
- * 
- * REQUIRED LIBRARIES (install via Arduino Library Manager):
- * - LiquidCrystal I2C (by Frank de Brabander) - for LCD display
- * - Adafruit SSD1306 (by Adafruit) - for OLED display  
- * - Adafruit GFX Library (by Adafruit) - for OLED display
- * - Encoder (by Paul Stoffregen) 
- * - MIDI Library (by Francois Best) - only needed if enabling DIN MIDI
- * 
- * Built-in Teensy libraries (no installation needed):
- * - Audio, Wire, USBHost_t36
+ * high-pass filter, and classic sound characteristics.
  */
 
 #define NUM_PARAMETERS 31
-#define NUM_PRESETS 20
+#define NUM_PRESETS 10
 #define VOICES 6
 
 #include "config.h"
@@ -42,9 +32,6 @@ const char* PROJECT_SUBTITLE = "6-Voice Poly";
   #define OLED_RESET -1
 #endif
 
-// ============================================================================
-// MIDI Setup
-// ============================================================================
 
 #ifdef USE_MIDI_HOST
 USBHost myusb;
@@ -57,7 +44,6 @@ MIDIDevice midi1(myusb);
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);
 #endif
 
-// All 19 Mini-Teensy Encoders (using configurable pin definitions from config.h)
 Encoder enc1(ENC_1_CLK, ENC_1_DT);
 Encoder enc2(ENC_2_CLK, ENC_2_DT);
 Encoder enc3(ENC_3_CLK, ENC_3_DT);
@@ -79,8 +65,6 @@ Encoder enc19(ENC_19_CLK, ENC_19_DT);
 Encoder enc20(ENC_20_CLK, ENC_20_DT);
 Encoder menuEncoder(MENU_ENCODER_DT, MENU_ENCODER_CLK);
 
-// Configurable encoder to parameter mapping (defined in config.h)
-// Array indices: 0=enc1, 1=enc2, ..., 10=enc11, 11=menuEncoder, 12=enc13, 13=enc14, ..., 19=enc20
 const int encoderMapping[20] = {
   ENC_1_PARAM, ENC_2_PARAM, ENC_3_PARAM, ENC_4_PARAM, ENC_5_PARAM,              // 0-4: enc1-enc5
   ENC_6_PARAM, ENC_7_PARAM, ENC_8_PARAM, ENC_9_PARAM, ENC_10_PARAM,             // 5-9: enc6-enc10
@@ -90,42 +74,13 @@ const int encoderMapping[20] = {
 
 long encoderValues[20] = {0};
 long lastEncoderValues[20] = {0};
-// Default parameter values - Juno-60 "Init" preset
+
 float allParameterValues[NUM_PARAMETERS] = {
-  0.5,   // 0: PWM Volume
-  0.5,   // 1: PWM Width 
-  0.8,   // 2: Saw Volume
-  0.0,   // 3: Sub Volume
-  0.0,   // 4: Noise Volume
-  0.05,  // 5: LFO Rate (0.5 Hz)
-  0.0,   // 6: LFO Delay
-  0.0,   // 7: LFO to PWM
-  0.0,   // 8: LFO to Pitch 
-  0.0,   // 9: LFO to Filter
-  0.01,  // 10: HPF Cutoff (20 Hz)
-  0.75,  // 11: LPF Cutoff (6000 Hz)
-  0.0,   // 12: Resonance
-  0.5,   // 13: Filter Env Amount
-  0.0,   // 14: Filter Attack
-  0.04,  // 15: Filter Decay (200ms)
-  0.5,   // 16: Filter Sustain
-  0.04,  // 17: Filter Release (200ms)
-  0.0,   // 18: Amp Attack
-  0.02,  // 19: Amp Decay (100ms)
-  0.8,   // 20: Amp Sustain
-  0.02,  // 21: Amp Release (100ms)
-  0.0,   // 22: Chorus Mode (0=off, 1=I, 2=II, 3=I+II)
-  0.0,   // 23: Reserved
-  0.0,   // 24: Reserved
-  0.5,   // 25: Play Mode (Poly)
-  0.0,   // 26: Glide Time (off)
-  0.0,   // 27: Reserved
-  0.0,   // 28: Reserved
-  0.0,   // 29: Reserved
-  0.0    // 30: MIDI Channel (omni)
+  0.508, 0.508, 0.508, 0.149, 0.000, 0.034, 0.000, 0.000, 0.008, 0.000,
+  0.010, 0.149, 0.023, 1.000, 0.000, 0.282, 0.500, 0.040, 0.000
+  0.176, 0.433, 0.020, 0.250, 0.000, 0.000, 0.500, 0.000, 0.000, 0.000, 0.000, 0.000
 };
 
-// Audio synthesis - Juno-60 authentic architecture
 AudioSynthWaveform       pwmOsc[VOICES];   // PWM oscillator per voice
 AudioSynthWaveform       sawOsc[VOICES];   // Sawtooth oscillator per voice
 AudioSynthWaveform       subOsc[VOICES];   // Sub-oscillator (1 octave down, square wave)
@@ -134,11 +89,11 @@ AudioSynthWaveformDc     dcFilter[VOICES]; // DC source for filter envelope per 
 AudioSynthWaveformSine   lfo;             // LFO for modulation
 AudioMixer4              oscMix[VOICES];   // Mix VCO + Sub + noise per voice
 AudioFilterLadder        lpFilter[VOICES]; // Low-pass filter per voice (24dB/oct)
-AudioFilterBiquad        hpFilter[VOICES]; // High-pass filter per voice (Juno signature feature)
+AudioFilterBiquad        hpFilter[VOICES];
 AudioEffectEnvelope      ampEnv[VOICES], filtEnv[VOICES]; // Envelopes per voice
 AudioMixer4              voiceMix1, voiceMix2; // Mix voices together
 AudioMixer4              preChorusMix;    // Pre-chorus voice mixer (mono)
-AudioEffectCustomChorus  chorusL, chorusR; // Authentic Juno-60 stereo BBD chorus
+AudioEffectCustomChorus  chorusL, chorusR; 
 AudioMixer4              finalMixL, finalMixR; // Stereo final mix (dry + chorus)
 #ifdef USE_USB_AUDIO
 AudioOutputUSB           usb1;            // USB audio output (stereo)
@@ -149,14 +104,10 @@ AudioOutputI2S           i2s1;            // I2S DAC output (Teensy Audio Shield
 AudioControlSGTL5000     sgtl5000_1;
 #endif
 
-// Authentic Juno-60 BBD chorus delay line buffers (10ms max at 44.1kHz = ~441 samples)
-short chorusDelayLineL[500]; // Left channel BBD delay line
-short chorusDelayLineR[500]; // Right channel BBD delay line
+short chorusDelayLineL[500];
+short chorusDelayLineR[500];
 
-// Audio connections - Juno-60 authentic polyphonic chain
-// Note: Juno-60 uses PWM + Saw on main VCO, we'll route both to mixer
 
-// Voice 0 connections
 AudioConnection patchCord1_0(pwmOsc[0], 0, oscMix[0], 0);      // PWM oscillator to mixer ch 0
 AudioConnection patchCord1_0b(sawOsc[0], 0, oscMix[0], 3);      // Sawtooth oscillator to mixer ch 3
 AudioConnection patchCord2_0(subOsc[0], 0, oscMix[0], 1);       // Sub-osc to mixer ch 1
@@ -167,7 +118,6 @@ AudioConnection patchCord6_0(dcFilter[0], filtEnv[0]);          // DC to filter 
 AudioConnection patchCord7_0(filtEnv[0], 0, lpFilter[0], 1);    // Filter env to LP filter freq
 AudioConnection patchCord8_0(lpFilter[0], 0, hpFilter[0], 0);   // LP filter to HP filter
 
-// Voice 1 connections
 AudioConnection patchCord1_1(pwmOsc[1], 0, oscMix[1], 0);
 AudioConnection patchCord1_1b(sawOsc[1], 0, oscMix[1], 3);
 AudioConnection patchCord2_1(subOsc[1], 0, oscMix[1], 1);
@@ -178,7 +128,6 @@ AudioConnection patchCord6_1(dcFilter[1], filtEnv[1]);
 AudioConnection patchCord7_1(filtEnv[1], 0, lpFilter[1], 1);
 AudioConnection patchCord8_1(lpFilter[1], 0, hpFilter[1], 0);
 
-// Voice 2 connections
 AudioConnection patchCord1_2(pwmOsc[2], 0, oscMix[2], 0);
 AudioConnection patchCord1_2b(sawOsc[2], 0, oscMix[2], 3);
 AudioConnection patchCord2_2(subOsc[2], 0, oscMix[2], 1);
@@ -189,7 +138,6 @@ AudioConnection patchCord6_2(dcFilter[2], filtEnv[2]);
 AudioConnection patchCord7_2(filtEnv[2], 0, lpFilter[2], 1);
 AudioConnection patchCord8_2(lpFilter[2], 0, hpFilter[2], 0);
 
-// Voice 3 connections
 AudioConnection patchCord1_3(pwmOsc[3], 0, oscMix[3], 0);
 AudioConnection patchCord1_3b(sawOsc[3], 0, oscMix[3], 3);
 AudioConnection patchCord2_3(subOsc[3], 0, oscMix[3], 1);
@@ -200,7 +148,6 @@ AudioConnection patchCord6_3(dcFilter[3], filtEnv[3]);
 AudioConnection patchCord7_3(filtEnv[3], 0, lpFilter[3], 1);
 AudioConnection patchCord8_3(lpFilter[3], 0, hpFilter[3], 0);
 
-// Voice 4 connections
 AudioConnection patchCord1_4(pwmOsc[4], 0, oscMix[4], 0);
 AudioConnection patchCord1_4b(sawOsc[4], 0, oscMix[4], 3);
 AudioConnection patchCord2_4(subOsc[4], 0, oscMix[4], 1);
@@ -211,7 +158,6 @@ AudioConnection patchCord6_4(dcFilter[4], filtEnv[4]);
 AudioConnection patchCord7_4(filtEnv[4], 0, lpFilter[4], 1);
 AudioConnection patchCord8_4(lpFilter[4], 0, hpFilter[4], 0);
 
-// Voice 5 connections
 AudioConnection patchCord1_5(pwmOsc[5], 0, oscMix[5], 0);
 AudioConnection patchCord1_5b(sawOsc[5], 0, oscMix[5], 3);
 AudioConnection patchCord2_5(subOsc[5], 0, oscMix[5], 1);
@@ -222,7 +168,6 @@ AudioConnection patchCord6_5(dcFilter[5], filtEnv[5]);
 AudioConnection patchCord7_5(filtEnv[5], 0, lpFilter[5], 1);
 AudioConnection patchCord8_5(lpFilter[5], 0, hpFilter[5], 0);
 
-// Mix all voices together
 AudioConnection patchCordMix1(hpFilter[0], 0, voiceMix1, 0);
 AudioConnection patchCordMix2(hpFilter[1], 0, voiceMix1, 1);
 AudioConnection patchCordMix3(hpFilter[2], 0, voiceMix1, 2);
@@ -256,7 +201,6 @@ AudioConnection patchCordOutL_DAC(finalMixL, 0, i2s1, 0); // Left channel
 AudioConnection patchCordOutR_DAC(finalMixR, 0, i2s1, 1); // Right channel
 #endif
 
-// ===== SYNTH PARAMETERS =====
 struct PolyVoice {
   int note;
   bool active;
@@ -270,7 +214,7 @@ int currentVoice = 0;  // Round-robin voice allocation
 int monoNoteStack[16];  // Stack of held notes in mono mode
 int monoStackSize = 0;
 
-// Control values - Juno-60 specific parameters
+// Control values
 float pwmVolume = 0.5;     // PWM volume level (0-1)
 float pwmWidth = 0.5;      // PWM pulse width (0.05-0.95) 
 float sawVolume = 0.8;     // Sawtooth volume level (0-1)
@@ -327,7 +271,6 @@ bool lfoDelayActive = false;
 int menuIndex = 0;
 bool inMenu = false;
 
-// Control names - Juno-60 specific parameters
 const char* controlNames[] = {
   "PWM Volume", "PWM Width", "Saw Volume", "Sub Volume", "Noise Volume",
   "LFO Rate", "LFO Delay", "LFO>PWM", "LFO>Pitch", "LFO>Filter", 
@@ -338,7 +281,7 @@ const char* controlNames[] = {
 
 bool macroMode = false;
 
-extern const MiniTeensyPreset presets[];
+extern const DCOTeensyPreset presets[];
 int currentPreset = 0;
 
 MenuState currentMenuState = PARENT_MENU;
@@ -347,7 +290,6 @@ int presetBrowseIndex = 0; // Which preset we're browsing
 
 
 void updateLFOModulation() {
-  // Juno-60 style LFO modulation with delay and multiple targets
   static unsigned long lastLFOUpdate = 0;
   unsigned long currentTime = millis();
   
@@ -357,7 +299,6 @@ void updateLFOModulation() {
   float timeElapsed = (currentTime - lastLFOUpdate) / 1000.0; // Convert ms to seconds
   lastLFOUpdate = currentTime;
   
-  // Handle LFO delay - Juno-60 feature
   if (!lfoDelayActive && currentTime - lfoStartTime < (lfoDelay * 1000)) {
     lfoOutput = 0.0;  // LFO silent during delay period
   } else {
@@ -365,13 +306,12 @@ void updateLFOModulation() {
     // Calculate LFO phase and output based on actual time elapsed
     lfoPhase += lfoRate * 2.0 * PI * timeElapsed;
     if (lfoPhase >= 2.0 * PI) lfoPhase -= 2.0 * PI;
-    lfoOutput = sin(lfoPhase);  // Sine wave LFO (authentic Juno)
+    lfoOutput = sin(lfoPhase); 
   }
   
   // Apply pitch wheel to all active voices
   float pitchWheelMultiplier = pow(2.0, pitchWheelValue * 2.0 / 12.0);
   
-  // Apply LFO to different targets simultaneously (Juno style)
   for (int v = 0; v < VOICES; v++) {
     if (voices[v].active) {
       float baseFreq;
@@ -388,7 +328,6 @@ void updateLFOModulation() {
         pitchMultiplier *= (1.0 + pitchMod);
       }
       
-      // Apply mod wheel to pitch (authentic Juno behavior)
       if (modWheelValue > 0.01) {
         float modPitchMod = lfoOutput * modWheelValue * 0.05; // ±5% for mod wheel
         pitchMultiplier *= (1.0 + modPitchMod);
@@ -457,7 +396,6 @@ void updateGlide() {
         currentFreq[v] += freqDelta * glideRate * 50.0;
       }
       
-      // Apply the current frequency to Juno oscillators
       // LFO modulation will be applied on top of this in updateLFOModulation()
       float pitchWheelMultiplier = pow(2.0, pitchWheelValue * 2.0 / 12.0);
       pwmOsc[v].frequency(currentFreq[v] * pitchWheelMultiplier);
@@ -467,9 +405,6 @@ void updateGlide() {
   }
 }
 
-// ============================================================================
-// Centralized MIDI Handler
-// ============================================================================
 
 void processMidiMessage(byte type, byte channel, byte data1, byte data2) {
   // Filter by MIDI channel (0 = omni, 1-16 = specific channel)
@@ -514,12 +449,10 @@ void handleControlChange(int cc, int value) {
     modWheelValue = paramValue;
     
     // Track mod wheel change for display
-    if (!inMenu) {
-      lastChangedParam = -1;  // Special flag for non-parameter controls
-      lastChangedName = "Mod Wheel";
-      lastChangedValue = value;  // Use raw 0-127 value for display
-      parameterChanged = true;
-    }
+    lastChangedParam = -1;  // Special flag for non-parameter controls
+    lastChangedName = "Mod Wheel";
+    lastChangedValue = value;  // Use raw 0-127 value for display
+    parameterChanged = true;
     return;
   }
   
@@ -556,20 +489,25 @@ void handleControlChange(int cc, int value) {
     updateSynthParameter(paramIndex, paramValue);
     
     // Track parameter change for display
-    if (!inMenu) {
-      lastChangedParam = paramIndex;
-      lastChangedValue = paramValue;
-      lastChangedName = controlNames[paramIndex];
-      parameterChanged = true;
-    }
+    lastChangedParam = paramIndex;
+    lastChangedValue = paramValue;
+    lastChangedName = controlNames[paramIndex];
+    parameterChanged = true;
   }
 }
 
 void handleProgramChange(int program) {
-  if (program >= 0 && program < 6) {
+  if (program >= 0 && program < NUM_PRESETS) {
     loadPreset(program);
     Serial.print("Program change to preset: ");
     Serial.println(program);
+    
+    // Update display to show preset name
+    if (!inMenu) {
+      String line1 = "Preset " + String(program + 1);
+      String line2 = String(presets[program].name);
+      displayText(line1, line2);
+    }
   }
 }
 
@@ -650,11 +588,9 @@ void setup() {
   display.sendBuffer();
 #endif
   
-  // Initialize all voice arrays for Juno-60 architecture
   for (int v = 0; v < VOICES; v++) {
-    // Initialize VCO (main oscillator with PWM and SAW outputs)
     pwmOsc[v].begin(WAVEFORM_BANDLIMIT_PULSE);  // Bandwidth-limited PWM oscillator
-    pwmOsc[v].amplitude(0.8);
+    pwmOsc[v].amplitude(1.0);
     pwmOsc[v].pulseWidth(pwmWidth);  // Set initial PWM width
     
     sawOsc[v].begin(WAVEFORM_BANDLIMIT_SAWTOOTH);  // Bandwidth-limited sawtooth oscillator
@@ -664,11 +600,10 @@ void setup() {
     subOsc[v].begin(WAVEFORM_BANDLIMIT_SQUARE);
     subOsc[v].amplitude(0.8);
     
-    // Configure mixer gains for Juno-60 oscillator setup
-    oscMix[v].gain(0, pwmVolume * 0.8);     // PWM volume
-    oscMix[v].gain(1, subVolume * 0.8);     // Sub oscillator volume  
-    oscMix[v].gain(2, noiseVolume * 0.6);   // Noise volume
-    oscMix[v].gain(3, sawVolume * 0.8);     // Sawtooth volume
+    oscMix[v].gain(0, pwmVolume * 0.6);     // PWM volume
+    oscMix[v].gain(1, subVolume * 0.6);     // Sub oscillator volume  
+    oscMix[v].gain(2, noiseVolume * 0.4);   // Noise volume
+    oscMix[v].gain(3, sawVolume * 0.4);     // Sawtooth volume
     
     // Configure DC source for filter envelope
     dcFilter[v].amplitude(filterEnvAmount);
@@ -676,12 +611,11 @@ void setup() {
     // Configure low-pass filter (24dB/oct ladder filter)
     lpFilter[v].frequency(lpfCutoff);
     lpFilter[v].resonance(resonance);
-    lpFilter[v].octaveControl(7.0); // Higher octave control for Juno-style filter tracking
+    lpFilter[v].octaveControl(7.0); 
     
     // Configure high-pass filter (12dB/oct)
-    hpFilter[v].setHighpass(0, hpfCutoff, 0.707); // Q=0.707 for smooth response
+    hpFilter[v].setHighpass(0, hpfCutoff, 0.7); // Q=0.707 for smooth response
     
-    // Configure envelopes with Juno-60 timing
     ampEnv[v].attack(ampAttack);
     ampEnv[v].sustain(ampSustain);
     ampEnv[v].decay(ampDecay);
@@ -723,7 +657,6 @@ void setup() {
   preChorusMix.gain(2, 0.0);
   preChorusMix.gain(3, 0.0);
   
-  // Initialize authentic Juno-60 BBD chorus effect
   chorusL.begin(chorusDelayLineL, 500, false); // Left channel (master LFO)
   chorusR.begin(chorusDelayLineR, 500, true);  // Right channel (180° phase offset)
   chorusL.set_mode(chorusMode);
@@ -742,7 +675,7 @@ void setup() {
   lfoStartTime = millis(); // Start LFO delay timer
     
 // sgt15000_1.enable();
-//     sgt15000_1.volume(1);
+// sgt15000_1.volume(1);
 
   Serial.println("DCO-Teensy Synth initialized");
   Serial.println("Parameters: 23 DCO parameters");
@@ -804,7 +737,6 @@ void readAllControls() {
       
       // Only update if encoder is mapped to a valid parameter (not -1)
       if (paramIndex >= 0 && paramIndex < NUM_PARAMETERS) {
-        // Handle macro mode for mapped parameters (Juno-60 style)
         int targetParam = paramIndex;
         if (macroMode && paramIndex == 14) targetParam = 5;   // Filter Attack -> LFO Rate  
         if (macroMode && paramIndex == 15) targetParam = 22;  // Filter Decay -> Chorus Mode
@@ -818,7 +750,6 @@ void readAllControls() {
   }
 }
 
-// Core synthesis parameter update function - Juno-60 specific
 void updateSynthParameter(int paramIndex, float val) {
   switch (paramIndex) {
     case 0: // PWM Volume
@@ -858,15 +789,17 @@ void updateSynthParameter(int paramIndex, float val) {
       lfoFilterAmount = val; // 0.0 to 1.0
       break;
     case 10: // HPF Cutoff
-      hpfCutoff = 20 + val * 1980; // 20Hz to 2000Hz
+      // Logarithmic frequency response like analog synth (20Hz to 2000Hz)
+      hpfCutoff = 20 * pow(100.0, val); // 20Hz to 2000Hz logarithmic
       updateFilters();
       break;
     case 11: // LPF Cutoff
-      lpfCutoff = 50 + val * 7950; // 50Hz to 8000Hz (authentic Juno range)
+      // Logarithmic frequency response like analog synth (50Hz to 8000Hz)
+      lpfCutoff = 50 * pow(160.0, val); // 50Hz to 8000Hz logarithmic
       updateFilters();
       break;
     case 12: // Resonance
-      resonance = val * 4.0; // 0.0 to 4.0 (higher range for authentic Juno self-oscillation)
+      resonance = val * 4.0; // 0.0 to 4.0
       updateFilters();
       break;
     case 13: // Filter Envelope Amount
@@ -951,15 +884,14 @@ int getMiniTeensyWaveform(float val, int osc) {
   }
 }
 
-// Juno-60 specific helper functions
 
 void updateOscillatorMix() {
   // Update oscillator mixer levels for all voices
   for (int v = 0; v < VOICES; v++) {
-    oscMix[v].gain(0, pwmVolume * 0.8);     // PWM oscillator
-    oscMix[v].gain(1, subVolume * 0.8);     // Sub oscillator
-    oscMix[v].gain(2, noiseVolume * 0.6);   // White noise
-    oscMix[v].gain(3, sawVolume * 0.8);     // Sawtooth (using mixer channel 3)
+    oscMix[v].gain(0, pwmVolume * 0.6);     // PWM oscillator
+    oscMix[v].gain(1, subVolume * 0.6);     // Sub oscillator
+    oscMix[v].gain(2, noiseVolume * 0.4);   // White noise
+    oscMix[v].gain(3, sawVolume * 0.4);     // Sawtooth (using mixer channel 3)
   }
 }
 
@@ -975,7 +907,7 @@ void updateFilters() {
   for (int v = 0; v < VOICES; v++) {
     lpFilter[v].frequency(lpfCutoff);
     lpFilter[v].resonance(resonance);
-    lpFilter[v].octaveControl(7.0); // Higher octave control for Juno-style filter tracking
+    lpFilter[v].octaveControl(7.0);
     
     hpFilter[v].setHighpass(0, hpfCutoff, 0.707); // 12dB/oct high-pass with Q=0.707
     
@@ -985,7 +917,6 @@ void updateFilters() {
 }
 
 void updateChorusMix() {
-  // Update stereo chorus wet/dry mix with authentic Juno-60 behavior
   if (chorusMode == 0) {
     // Chorus off - dry signal only (mono)
     finalMixL.gain(0, 1.0);  // Left dry signal
@@ -993,20 +924,17 @@ void updateChorusMix() {
     finalMixR.gain(0, 1.0);  // Right dry signal  
     finalMixR.gain(1, 0.0);  // No right chorus
   } else {
-    // Chorus on - authentic Juno-60 stereo imaging and warmth
-    // The original Juno-60 created wide stereo by mixing chorus differently L/R
-    finalMixL.gain(0, 0.6);  // Left: strong dry signal for clarity
-    finalMixL.gain(1, 0.8);  // Left: strong left BBD chorus
-    finalMixR.gain(0, 0.6);  // Right: strong dry signal for clarity  
-    finalMixR.gain(1, 0.8);  // Right: strong right BBD chorus (180° phase difference)
+    finalMixL.gain(0, 0.5);  // Left: dry signal 
+    finalMixL.gain(1, 0.5);  // Left: wet chorus signal (total = 1.0)
+    finalMixR.gain(0, 0.5);  // Right: dry signal  
+    finalMixR.gain(1, 0.5);  // Right: wet chorus signal (180° phase difference)
     
     // The 180° phase difference between L/R BBDs creates the wide stereo image
-    // Combined with the different modulation creates that classic "swirling" effect
+    // Unity gain prevents clipping while maintaining chorus effect
   }
 }
 
 void updateOscillatorFrequencies() {
-  // Update all active voices with Juno-60 style oscillator setup
   for (int v = 0; v < VOICES; v++) {
     if (voices[v].active) {
       float baseFreq = 440.0 * pow(2.0, (voices[v].note - 69) / 12.0);
@@ -1028,12 +956,12 @@ void updateEnvelopes() {
     ampEnv[v].attack(ampAttack);
     ampEnv[v].sustain(ampSustain);
     ampEnv[v].decay(ampDecay);
-    ampEnv[v].release(ampDecay);
+    ampEnv[v].release(ampRelease);
     
     filtEnv[v].attack(filtAttack);
     filtEnv[v].sustain(filtSustain);
     filtEnv[v].decay(filtDecay);
-    filtEnv[v].release(filtDecay);
+    filtEnv[v].release(filtRelease);
   }
 }
 
@@ -1099,7 +1027,6 @@ int getTopMonoNote() {
 }
 
 void noteOn(int note, int velocity) {
-  // Reset LFO delay on new note (Juno-60 behavior)
   lfoStartTime = millis();
   lfoDelayActive = false;
   
@@ -1376,7 +1303,12 @@ void loop() {
   updateGlide();
   
   // Update display if parameter changed during this loop iteration
-  if (parameterChanged && !inMenu) {
+  if (parameterChanged) {
+    // If we were in menu mode, exit menu to show MIDI parameter
+    if (inMenu) {
+      inMenu = false;
+    }
+    
     String line2 = "";
     
     if (lastChangedParam >= 0) {

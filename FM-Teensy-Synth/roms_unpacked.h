@@ -5,10 +5,10 @@
 
 #pragma once
 
-#define NUM_DX7_BANKS 8
+#define NUM_BANKS 8
 
 // External declarations
-extern const char* dx7BankNames[8];
+extern const char* BankNames[8];
 
 extern uint8_t progmem_bank[8][32][156];
 
@@ -5666,7 +5666,7 @@ uint8_t progmem_bank[8][32][156] PROGMEM =
 };
 
 // Bank names array (automatically generated)
-const char* dx7BankNames[8] PROGMEM = {
+const char* BankNames[8] PROGMEM = {
   "ROM1A",
   "ROM1B",
   "ROM2A",

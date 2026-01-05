@@ -1,7 +1,7 @@
 #include "config.h"
 
-#define NUM_PARAMETERS 22  // Updated: removed Filter Mode, added Juno-style LFO parameters
-#define NUM_PRESETS 8
+#define NUM_PARAMETERS 22  
+#define NUM_PRESETS 12
 #define VOICES 6
 
 #include "MenuNavigation.h"
@@ -38,17 +38,6 @@ extern int midiChannel;
 extern int currentPreset;
 extern bool parameterChanged;
 
-const BraidsPreset braidsPresets[NUM_PRESETS] = {
-  {"CSaw Lead", 0, 64, 32, 5, 20, 100, 50, 40, 3000, 30},       // Classic saw lead
-  {"Sine Pad", 8, 20, 80, 40, 80, 120, 100, 60, 1500, 10},     // Sine wave pad
-  {"FM Bell", 16, 90, 60, 10, 60, 80, 80, 50, 4000, 20},       // FM-style bell
-  {"Noise Drum", 24, 127, 100, 1, 30, 0, 20, 30, 2000, 50},    // Percussion
-  {"Vocal Formant", 32, 80, 90, 15, 40, 90, 60, 50, 2500, 40}, // Vocal-like
-  {"Digital Harsh", 40, 120, 127, 5, 25, 70, 30, 40, 5000, 80}, // Digital/harsh
-  {"Analog Sync", 4, 100, 70, 8, 35, 85, 45, 50, 3500, 60},    // Sync sweep
-  {"Pluck Bass", 12, 60, 40, 3, 15, 60, 25, 30, 800, 20},      // Bass pluck
-};
-
 const char* parentMenuItems[] = {"Presets", "Braids", "Settings", "< Exit"};
 const char* braidsMenuItems[] = {"Shape", "Timbre", "Color", "Coarse", "Volume", "Envelopes", "Filter", "LFO", "< Back"};
 const char* envelopeMenuItems[] = {"Amp Attack", "Amp Decay", "Amp Sustain", "Amp Release", "Filt Attack", "Filt Decay", "Filt Sustain", "Filt Release", "< Back"};
@@ -62,7 +51,21 @@ extern Encoder menuEncoder;
 extern Encoder enc1, enc2, enc3, enc4, enc5, enc6, enc7, enc8, enc9, enc10, enc11, enc13, enc14, enc15, enc16, enc17, enc18, enc19, enc20;
 extern void updateBraidsParameter(int paramIndex, float val);
 extern const int encoderMapping[19];
-extern const BraidsPreset braidsPresets[NUM_PRESETS];
+
+const BraidsPreset braidsPresets[NUM_PRESETS] = {
+  {"Supersaw", {9.0, 69.0, 61.0, 0.0, 0.0, 100.0, 50.0, 39.0, 75.1, 3.0, 127.0, 0.0, 36.0, 0.0, 36.0, 127.0, 3.0, 2.0, 2.0, 3.0, 0.0, 1.0}},   
+  {"Chiptune", {10.0, 68.0, 62.0, 0.0, 0.0, 6.0, 70.0, 33.0, 72.1, 0.0, 127.0, 0.0, 36.0, 0.0, 36.0, 127.0, 3.0, 0.0, 0.0, 0.0, 0.0, 1.0}},
+  {"CSaw", {0.0, 58.0, 54.0, 0.0, 0.0, 100.0, 50.0, 40.0, 80.1, 4.0, 127.0, 0.0, 8.0, 0.0, 50.0, 127.0, 5.0, 0.0, 0.0, 0.0, 0.0, 0.0}},  
+  {"Fold Bells", {3.0, 67.0, 21.0, 0.0, 0.0, 51.0, 39.0, 51.0, 69.1, 3.0, 127.0, 0.0, 51.0, 0.0, 51.0, 127.0, 25.0, 1.0, 0.0, 7.0, 13.0, 9.0}},  
+  {"PWM Drift", {5.0, 52.0, 68.0, 0.0, 0.0, 100.0, 50.0, 40.0, 80.1, 4.0, 127.0, 2.0, 36.0, 0.0, 60.0, 127.0, 3.0, 44.0, 0.0, 6.0, 0.0, 0.0}},       
+  {"Sine Pad", {12.0, 68.0, 62.0, 0.0, 18.0, 41.0, 71.0, 60.0, 84.1, 8.0, 127.0, 5.0, 37.0, 96.0, 60.0, 127.0, 2.0, 5.0, 8.0, 6.0, 19.0, 1.0}}, 
+  {"Auto-Wah", {21.0, 63.0, 92.0, 0.0, 0.0, 41.0, 71.0, 60.0, 70.1, 5.0, 127.0, 0.0, 27.0, 0.0, 61.0, 127.0, 2.0, 57.0, 65.0, 6.0, 0.0, 1.0}},   
+  {"Synth Strings", {27.0, 42.0, 85.0, 0.0, 2.0, 45.0, 81.0, 10.0, 109.0, 17.0, 127.0, 0.0, 7.0, 0.0, 51.0, 127.0, 34.0, 0.0, 0.0, 13.0, 0.0, 0.0}},   
+  {"LFO Keys", {26.0, 45.0, 76.0, 0.0, 0.0, 61.0, 0.0, 19.0, 64.0, 6.0, 127.0, 0.0, 14.0, 1.0, 25.0, 127.0, 3.0, 7.0, 4.0, 5.0, 0.0, 0.0}},  
+  {"Evolving Pad", {17.0, 40.0, 110.0, 0.0, 36.0, 72.0, 127.0, 82.0, 46.0, 12.0, 127.0, 52.0, 62.0, 71.0, 67.0, 127.0, 0.0, 24.0, 30.0, 5.0, 19.0, 0.0}},   
+  {"Init Saw", {0.0, 64.0, 64.0, 0.0, 0.0, 7.0, 127.0, 2.0, 127.0, 0.0, 127.0, 0.0, 7.0, 0.0, 127.0, 127.0, 5.0, 0.0, 0.0, 0.0, 0.0, 0.0}},       
+  {"Init Supersaw", {9.0, 68.0, 61.0, 0.0, 0.0, 7.0, 127.0, 2.0, 127.0, 0.0, 127.0, 0.0, 7.0, 0.0, 127.0, 127.0, 5.0, 0.0, 0.0, 0.0, 0.0, 0.0}}
+};
 
 void displayText(String line1, String line2) {
 #ifdef USE_LCD_DISPLAY
@@ -699,6 +702,28 @@ void resetEncoderBaselines() {
       lastEncoderValues[i] = targetEncoderValue;
     }
   }
+}
+
+void loadPreset(int presetNum) {
+  presetNum = constrain(presetNum, 0, NUM_PRESETS - 1);
+  currentPreset = presetNum;
+  
+  const BraidsPreset& preset = braidsPresets[presetNum];
+  
+  // Update parameter array to match preset values (all 22 parameters)
+  for (int i = 0; i < NUM_PARAMETERS; i++) {
+    braidsParameters[i] = preset.parameters[i];
+  }
+  
+  // Apply all parameter values to synthesis engine
+  for (int i = 0; i < NUM_PARAMETERS; i++) {
+    updateBraidsParameter(i, braidsParameters[i]);
+  }
+  
+  Serial.print("Loaded Braids preset ");
+  Serial.print(presetNum + 1);
+  Serial.print(": ");
+  Serial.println(preset.name);
 }
 
 void printCurrentPresetValues() {

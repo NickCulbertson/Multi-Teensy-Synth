@@ -13,40 +13,33 @@ extern Adafruit_SSD1306 display;
 
 #include <Encoder.h>
 
-// ============================================================================
-// External Variables
-// ============================================================================
 
 extern Encoder menuEncoder;
 extern bool parameterChanged;
 
-// ============================================================================
-// Menu Variables
-// ============================================================================
 
 MenuState currentMenuState = PARENT_MENU;
 int menuIndex = 0;
 bool inMenu = false;
 int currentEditParam = -1;
 
-// ============================================================================
-// EPiano Built-in Presets (from MDA EPiano engine)
-// ============================================================================
 
 const EPianoPreset epianoPresets[] = {
-  {"Default",  {0.500f, 0.500f, 0.500f, 0.500f, 0.500f, 0.650f, 0.250f, 0.500f, 16.0f, 0.500f, 0.146f, 0.000f}},
-  {"Bright",   {0.500f, 0.500f, 1.000f, 0.800f, 0.500f, 0.650f, 0.250f, 0.500f, 16.0f, 0.500f, 0.146f, 0.500f}},
-  {"Mellow",   {0.500f, 0.500f, 0.000f, 0.000f, 0.500f, 0.650f, 0.250f, 0.500f, 16.0f, 0.500f, 0.246f, 0.000f}},
-  {"Autopan",  {0.500f, 0.500f, 0.500f, 0.500f, 0.250f, 0.650f, 0.250f, 0.500f, 16.0f, 0.500f, 0.246f, 0.000f}},
-  {"Tremolo",  {0.500f, 0.500f, 0.500f, 0.500f, 0.750f, 0.650f, 0.250f, 0.500f, 16.0f, 0.500f, 0.246f, 0.000f}}
+  {"Init",     {0.500f, 0.500f, 0.500f, 0.500f, 0.500f, 0.650f, 0.250f, 0.500f, 16.0f, 0.500f, 0.146f, 0.000f, 0.000f}},
+  {"Dreamy",   {0.500f, 0.500f, 0.500f, 0.500f, 0.750f, 0.650f, 0.250f, 0.500f, 16.0f, 0.500f, 0.246f, 0.000f, 0.000f}},
+  {"Bright",   {0.500f, 0.500f, 1.000f, 0.800f, 0.500f, 0.650f, 0.250f, 0.500f, 16.0f, 0.500f, 0.146f, 0.500f, 0.000f}},
+  {"Mellow",   {0.500f, 0.500f, 0.000f, 0.000f, 0.500f, 0.650f, 0.250f, 0.500f, 16.0f, 0.500f, 0.246f, 0.000f, 0.000f}},
+  {"Autopan",  {0.500f, 0.500f, 0.500f, 0.500f, 0.250f, 0.650f, 0.250f, 0.500f, 16.0f, 0.500f, 0.246f, 0.000f, 0.000f}},
+  {"Tremolo",  {0.500f, 0.500f, 0.500f, 0.500f, 0.750f, 0.650f, 0.250f, 0.500f, 16.0f, 0.500f, 0.246f, 0.000f, 0.000f}},
+  {"S.Chill",  {0.602f, 0.867f, 0.305f, 0.320f, 0.484f, 0.603f, 0.797f, 0.508f, 1.000f, 0.500f, 0.023f, 0.000f, 0.000f}},
+  {"Felt",     {0.133f, 0.703f, 0.195f, 0.086f, 0.508f, 0.447f, 0.797f, 0.508f, 1.000f, 0.500f, 0.086f, 0.000f, 0.000f}},
+  {"Bell",     {0.148f, 0.500f, 0.242f, 1.000f, 0.461f, 0.572f, 0.250f, 0.500f, 16.0f, 0.500f, 0.146f, 0.000f, 0.000f}},
+  {"Organ",    {0.148f, 0.500f, 0.242f, 1.000f, 0.461f, 0.572f, 0.250f, 0.500f, 16.0f, 0.500f, 0.146f, 0.200f, 0.000f}}
 };
 
-// ============================================================================
-// Menu Structure
-// ============================================================================
 
 const char* parentMenuItems[] = {"Parameters", "Presets", "Settings", "< Exit"};
-const char* presetMenuItems[] = {"Default", "Bright", "Mellow", "Autopan", "Tremolo", "< Back"};
+const char* presetMenuItems[] = {"Init", "Dreamy", "Bright", "Mellow", "Autopan", "Tremolo", "Super Chill", "Felt", "Bell", "Organ", "< Back"};
 const char* settingsMenuItems[] = {"MIDI Channel", "< Back"};
 
 // All EPiano parameters for unified parameter menu
@@ -63,9 +56,6 @@ const char* controlNames[] = {
   "Detune", "Overdrive", "MIDI Channel"
 };
 
-// ============================================================================
-// Function Implementations
-// ============================================================================
 
 void initializeMenu() {
   currentMenuState = PARENT_MENU;
@@ -155,6 +145,7 @@ void enterMenu() {
   inMenu = true;
   currentMenuState = PARENT_MENU;
   menuIndex = 0;
+  printCurrentPresetValues();
   updateDisplay();
 }
 
@@ -195,8 +186,9 @@ void selectMenuItem() {
       break;
       
     case PRESETS:
-      if (menuIndex < 5) { // Preset 0-4
+      if (menuIndex < 10) { // Preset 0-4
         loadPreset(menuIndex);
+        printCurrentPresetValues();
         // Stay in preset menu (don't exit)
       } else { // Back
         backToParentMenu();
@@ -239,7 +231,7 @@ void incrementMenuIndex() {
       break;
     case PRESETS:
       menuIndex++;
-      if (menuIndex > 5) menuIndex = 0; // 6 items: 5 presets + Back
+      if (menuIndex > 10) menuIndex = 0; // 6 items: 5 presets + Back
       break;
     case SETTINGS:
       menuIndex++;
@@ -266,7 +258,7 @@ void decrementMenuIndex() {
       break;
     case PRESETS:
       menuIndex--;
-      if (menuIndex < 0) menuIndex = 5; // 6 items: 5 presets + Back
+      if (menuIndex < 0) menuIndex = 10; // 6 items: 5 presets + Back
       break;
     case SETTINGS:
       menuIndex--;
@@ -361,6 +353,41 @@ void handleEncoderChange(int encoderIndex, int change) {
   if (paramIndex >= 0) {
     updateEncoderParameter(paramIndex, change);
   }
+}
+
+void printCurrentPresetValues() {
+  Serial.println("\n=== CURRENT PRESET DEBUG ===");
+  Serial.print("Active Preset: ");
+  Serial.print(currentPreset + 1);
+  Serial.print(" (");
+  Serial.print(epianoPresets[currentPreset].name);
+  Serial.println(")");
+  
+  Serial.println("\nCurrent Parameter Values:");
+  Serial.print("{");
+  for (int i = 0; i < NUM_PARAMETERS; i++) {
+    Serial.print(allParameterValues[i], 3); // 3 decimal places
+    if (i < NUM_PARAMETERS - 1) Serial.print(", ");
+  }
+  Serial.println("}");
+  Serial.println("Copy this line into your preset array!");
+  
+  Serial.println("\nKey Parameters:");
+  Serial.print("Decay: "); Serial.print(allParameterValues[0], 3);
+  Serial.print(" | Release: "); Serial.print(allParameterValues[1], 3);
+  Serial.print(" | Hardness: "); Serial.println(allParameterValues[2], 3);
+  Serial.print("Treble: "); Serial.print(allParameterValues[3], 3);
+  Serial.print(" | Pan/Tremolo: "); Serial.print(allParameterValues[4], 3);
+  Serial.print(" | LFO Rate: "); Serial.println(allParameterValues[5], 3);
+  
+  Serial.println("\nEncoder Raw Values:");
+  for (int i = 1; i <= 11; i++) {
+    Serial.print("Enc"); Serial.print(i); Serial.print(": ");
+    Serial.print(allParameterValues[i-1], 3); Serial.print(" | ");
+    if (i % 3 == 0) Serial.println(); // New line every 3 encoders
+  }
+  Serial.println();
+  Serial.println("=== DEBUG END ===\n");
 }
 
 // resetEncoderBaselines() is implemented in main sketch

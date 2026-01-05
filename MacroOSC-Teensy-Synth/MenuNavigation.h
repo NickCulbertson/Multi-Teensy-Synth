@@ -82,16 +82,7 @@ enum MenuState {
 
 struct BraidsPreset {
   const char* name;
-  uint8_t shape;       // Oscillator shape (0-42)
-  uint8_t timbre;      // Timbre parameter (0-127)
-  uint8_t color;       // Color parameter (0-127)
-  uint8_t coarse;      // Coarse transpose
-  uint8_t attack;      // Envelope attack (0-127)
-  uint8_t decay;       // Envelope decay (0-127)
-  uint8_t sustain;     // Envelope sustain (0-127)
-  uint8_t release;     // Envelope release (0-127)
-  uint16_t filterFreq; // Filter frequency (50-8000)
-  uint8_t filterRes;   // Filter resonance (0-127)
+  float parameters[22]; // Fixed size array to match NUM_PARAMETERS
 };
 
 // ============================================================================

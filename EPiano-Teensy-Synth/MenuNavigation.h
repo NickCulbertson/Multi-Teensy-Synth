@@ -4,6 +4,11 @@
 #include "config.h"
 #include <Arduino.h>
 
+// Define NUM_PARAMETERS if not already defined
+#ifndef NUM_PARAMETERS
+#define NUM_PARAMETERS 13
+#endif
+
 // ============================================================================
 // Menu State Enums - EPiano Specific
 // ============================================================================
@@ -22,7 +27,7 @@ enum MenuState {
 
 struct EPianoPreset {
   char name[20];
-  float parameters[12]; // 12 EPiano parameters (0-11)
+  float parameters[13]; // 12 EPiano parameters (0-11)
 };
 
 // ============================================================================
@@ -35,6 +40,7 @@ extern bool inMenu;
 extern float allParameterValues[];
 extern int currentPreset;
 extern int currentEditParam;
+extern const EPianoPreset epianoPresets[];
 
 // ============================================================================
 // Function Declarations
@@ -55,5 +61,6 @@ void updateEncoderParameter(int paramIndex, int change);
 void updateParameterFromMenu(int paramIndex, float value);
 void loadPreset(int presetIndex);
 int getNumPresets();
+void printCurrentPresetValues();
 
 #endif // MENU_NAVIGATION_H

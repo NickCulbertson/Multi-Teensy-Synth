@@ -1,7 +1,7 @@
 #include "config.h"
 
 #define NUM_PARAMETERS 31
-#define NUM_PRESETS 20
+#define NUM_PRESETS 10
 #define VOICES 6
 
 #include "MenuNavigation.h"
@@ -39,14 +39,14 @@ extern int playMode;
 extern float glideTime;
 extern int currentPreset;
 extern bool parameterChanged;
-// Juno-60 specific variables
 extern float pwmVolume, pwmWidth, sawVolume, subVolume, noiseVolume;
 extern float lfoRate, lfoDelay, lfoPWMAmount, lfoPitchAmount, lfoFilterAmount;
 extern float hpfCutoff, lpfCutoff, resonance, filterEnvAmount;
 extern float filtAttack, filtDecay, filtSustain, filtRelease;
 extern float ampAttack, ampDecay, ampSustain, ampRelease;
 extern int chorusMode;
-const char* parentMenuItems[] = {"Presets", "VCO", "Sub+Noise", "LFO", "Filter", "Envelopes", "Chorus Mode", "Voice Mode", "Settings", "< Exit"};
+const char* parentMenuItems[] = {"Presets", "Parameters", "Voice Mode", "Settings", "< Exit"};
+const char* parametersMenuItems[] = {"VCO", "Sub+Noise", "LFO", "Filter", "Envelopes", "Chorus Mode", "< Back"};
 const char* vcoMenuItems[] = {"PWM Volume", "PWM Width", "Saw Volume", "< Back"};
 const char* subNoiseMenuItems[] = {"Sub Volume", "Noise Volume", "< Back"};
 const char* lfoMenuItems[] = {"Rate", "Delay", "LFO>PWM", "LFO>Pitch", "LFO>Filter", "< Back"};
@@ -61,6 +61,29 @@ extern Encoder enc1, enc2, enc3, enc4, enc5, enc6, enc7, enc8, enc9, enc10, enc1
 extern void updateSynthParameter(int paramIndex, float val);
 extern int currentPreset;
 
+const DCOTeensyPreset presets[] = {
+  {"Dream Keys", {0.000, 0.508, 0.500, 0.219, 0.000, 0.034, 0.000, 0.000, 0.016, 0.000, 0.010, 0.180, 0.054, 1.000, 0.000, 0.305, 0.500, 0.040, 0.000, 0.199, 0.433, 0.020, 0.667, 0.000, 0.000, 0.500, 0.000, 0.000, 0.000, 0.000, 0.000}},
+
+  {"PWM Keys", {1.000, 0.172, 0.000, 0.195, 0.000, 0.113, 0.000, 0.023, 0.000, 0.000, 0.010, 0.016, 0.031, 1.000, 0.000, 0.399, 0.406, 0.142, 0.000, 0.528, 0.508, 0.109, 0.250, 0.000, 0.000, 0.500, 0.000, 0.000, 0.000, 0.000, 0.000}},
+  
+  {"Brass", {0.000, 0.258, 0.789, 0.000, 0.047, 0.019, 0.000, 0.000, 0.023, 0.000, 0.010, 0.164, 0.031, 0.852, 0.023, 0.165, 0.406, 0.024, 0.016, 0.395, 0.769, 0.031, 0.500, 0.000, 0.000, 0.500, 0.000, 0.000, 0.000, 0.000, 0.000}},
+  
+  {"Bell", {0.789, 0.258, 0.398, 0.179, 0.000, 0.316, 0.000, 0.000, 0.086, 0.000, 0.010, 0.008, 0.085, 1.000, 0.000, 0.571, 0.000, 0.024, 0.000, 0.395, 0.769, 0.031, 0.250, 0.000, 0.000, 0.500, 0.000, 0.000, 0.000, 0.000, 0.000}},
+  
+  {"Bass", {0.000, 0.258, 0.727, 1.000, 0.000, 0.019, 0.000, 0.000, 0.023, 0.000, 0.010, 0.000, 0.023, 0.883, 0.000, 0.095, 0.000, 0.017, 0.000, 0.403, 0.000, 0.023, 0.250, 0.000, 0.000, 0.500, 0.000, 0.000, 0.000, 0.000, 0.000}},
+  
+  {"Lush Keys", {0.852, 0.555, 0.000, 0.000, 0.000, 0.019, 0.000, 0.672, 0.039, 0.000, 0.010, 0.203, 0.008, 1.000, 0.000, 0.071, 0.414, 0.063, 0.000, 0.403, 0.000, 0.078, 0.500, 0.000, 0.000, 0.500, 0.000, 0.000, 0.000, 0.000, 0.000}},
+  
+  {"Space Bass", {0.883, 0.555, 0.203, 0.320, 0.094, 0.019, 0.000, 0.680, 0.039, 0.000, 0.010, 0.125, 0.227, 1.000, 0.000, 0.712, 0.414, 0.086, 0.000, 0.039, 1.000, 0.031, 0.250, 0.000, 0.000, 0.500, 0.000, 0.000, 0.000, 0.000, 0.000}},
+  
+  {"Poly Keys", {0.480, 0.453, 0.280, 0.000, 0.000, 0.253, 0.000, 0.125, 0.125, 0.000, 0.010, 0.094, 0.000, 1.000, 0.000, 0.220, 0.039, 0.079, 0.000, 0.036, 0.800, 0.075, 0.250, 0.000, 0.000, 0.500, 0.000, 0.000, 0.000, 0.000, 0.000}},
+  
+  {"Star Lead", {0.000, 0.555, 0.828, 0.148, 0.000, 0.261, 0.273, 0.000, 0.125, 0.000, 0.010, 0.391, 0.062, 0.758, 0.219, 0.712, 0.000, 0.086, 0.000, 0.039, 1.000, 0.031, 0.500, 0.000, 0.000, 0.500, 0.000, 0.000, 0.000, 0.000, 0.000}},
+  
+  {"Old Friends", {0.398, 0.352, 0.000, 0.406, 0.055, 0.261, 0.352, 0.172, 0.125, 0.000, 0.010, 0.500, 0.125, 0.656, 0.180, 0.712, 0.000, 0.086, 0.062, 0.242, 1.000, 0.031, 0.250, 0.000, 0.000, 0.500, 0.000, 0.000, 0.000, 0.000, 0.000}},
+
+  {"Init", {0.508, 0.508, 0.508, 0.149, 0.000, 0.034, 0.000, 0.000, 0.008, 0.000, 0.010, 0.149, 0.023, 1.000, 0.000, 0.282, 0.500, 0.040, 0.000, 0.176, 0.433, 0.020, 0.250, 0.000, 0.000, 0.500, 0.000, 0.000, 0.000, 0.000, 0.000}}
+};
 
 void displayText(String line1, String line2) {
 #ifdef USE_LCD_DISPLAY
@@ -107,6 +130,10 @@ void updateDisplay() {
         case PARENT_MENU:
           line1 = "Menu";
           line2 = parentMenuItems[menuIndex];
+          break;
+        case PARAMETERS:
+          line1 = "Parameters";
+          line2 = parametersMenuItems[menuIndex];
           break;
         case VCO:
           line1 = "VCO";
@@ -155,21 +182,7 @@ void updateDisplay() {
             int paramIndex = getParameterIndex(currentMenuState);
             if (paramIndex >= 0) {
               line1 = controlNames[paramIndex];
-              if (paramIndex == 3 || paramIndex == 4 || paramIndex == 20) { // Extended fine tuning
-                float val = allParameterValues[paramIndex];
-                if (val <= 0.25) {
-                  float semiRange = val / 0.25;
-                  int semitones = (int)(-12 + (semiRange * 11)); // -12 to -1
-                  line2 = String(semitones) + "st";
-                } else if (val >= 0.75) {
-                  float semiRange = (val - 0.75) / 0.25;
-                  int semitones = (int)(1 + (semiRange * 11)); // +1 to +12
-                  line2 = "+" + String(semitones) + "st";
-                } else {
-                  int cents = (int)((val - 0.5) * 100); // -25 to +25 cents
-                  line2 = (cents >= 0 ? "+" : "") + String(cents) + "c";
-                }
-              } else if (paramIndex == 5) { // LFO Rate - show frequency
+              if (paramIndex == 5) { // LFO Rate - show frequency
                 float val = allParameterValues[paramIndex];
                 float frequency = 0.1 + val * 19.9; // 0.1 to 20 Hz
                 line2 = String(frequency, 1) + " Hz";
@@ -221,7 +234,7 @@ void updateDisplay() {
   } else {
     // Only show default message if no parameter was recently changed via MIDI
     if (!parameterChanged) {
-      line1 = "Juno-Teensy";
+      line1 = "DCO Synth";
       line2 = "Press for menu";
       displayText(line1, line2);
     }
@@ -467,17 +480,26 @@ void navigateMenuForward() {
         presetBrowseIndex = 0;
         return; 
       }
-      else if (menuIndex == 1) currentMenuState = VCO;
-      else if (menuIndex == 2) currentMenuState = SUB_NOISE;
-      else if (menuIndex == 3) currentMenuState = LFO;
-      else if (menuIndex == 4) currentMenuState = FILTER;
-      else if (menuIndex == 5) currentMenuState = ENVELOPES;
-      else if (menuIndex == 6) currentMenuState = CHORUS_MODE;
-      else if (menuIndex == 7) currentMenuState = VOICE_MODE;
-      else if (menuIndex == 8) currentMenuState = SETTINGS;
-      else if (menuIndex == 9) {
+      else if (menuIndex == 1) currentMenuState = PARAMETERS;
+      else if (menuIndex == 2) currentMenuState = VOICE_MODE;
+      else if (menuIndex == 3) currentMenuState = SETTINGS;
+      else if (menuIndex == 4) {
         inMenu = false;
         inPresetBrowse = false;
+        return;
+      }
+      menuIndex = 0;
+      break;
+    case PARAMETERS:
+      if (menuIndex == 0) currentMenuState = VCO;
+      else if (menuIndex == 1) currentMenuState = SUB_NOISE;
+      else if (menuIndex == 2) currentMenuState = LFO;
+      else if (menuIndex == 3) currentMenuState = FILTER;
+      else if (menuIndex == 4) currentMenuState = ENVELOPES;
+      else if (menuIndex == 5) currentMenuState = CHORUS_MODE;
+      else if (menuIndex == 6) {
+        currentMenuState = PARENT_MENU;
+        menuIndex = 1; 
         return;
       }
       menuIndex = 0;
@@ -487,8 +509,8 @@ void navigateMenuForward() {
       else if (menuIndex == 1) currentMenuState = PWM_WIDTH;
       else if (menuIndex == 2) currentMenuState = SAW_VOLUME;
       else if (menuIndex == 3) {
-        currentMenuState = PARENT_MENU;
-        menuIndex = 1; 
+        currentMenuState = PARAMETERS;
+        menuIndex = 0; 
         return;
       }
       break;
@@ -496,8 +518,8 @@ void navigateMenuForward() {
       if (menuIndex == 0) currentMenuState = SUB_VOLUME;
       else if (menuIndex == 1) currentMenuState = NOISE_VOLUME;
       else if (menuIndex == 2) {
-        currentMenuState = PARENT_MENU;
-        menuIndex = 2;
+        currentMenuState = PARAMETERS;
+        menuIndex = 1;
         return;
       }
       break;
@@ -511,8 +533,8 @@ void navigateMenuForward() {
       else if (menuIndex == 6) currentMenuState = AMP_SUSTAIN;
       else if (menuIndex == 7) currentMenuState = AMP_RELEASE;
       else if (menuIndex == 8) {
-        currentMenuState = PARENT_MENU;
-        menuIndex = 5;
+        currentMenuState = PARAMETERS;
+        menuIndex = 4;
         return;
       }
       break;
@@ -522,8 +544,8 @@ void navigateMenuForward() {
       else if (menuIndex == 2) currentMenuState = RESONANCE;
       else if (menuIndex == 3) currentMenuState = FILTER_ENV_AMT;
       else if (menuIndex == 4) {
-        currentMenuState = PARENT_MENU;
-        menuIndex = 4;
+        currentMenuState = PARAMETERS;
+        menuIndex = 3;
         return;
       }
       break;
@@ -534,8 +556,8 @@ void navigateMenuForward() {
       else if (menuIndex == 3) currentMenuState = LFO_PITCH_AMT;
       else if (menuIndex == 4) currentMenuState = LFO_FILTER_AMT;
       else if (menuIndex == 5) {
-        currentMenuState = PARENT_MENU;
-        menuIndex = 3;
+        currentMenuState = PARAMETERS;
+        menuIndex = 2;
         return;
       }
       break;
@@ -544,7 +566,7 @@ void navigateMenuForward() {
       else if (menuIndex == 1) currentMenuState = GLIDE_TIME;
       else if (menuIndex == 2) {
         currentMenuState = PARENT_MENU;
-        menuIndex = 7;
+        menuIndex = 2;
         return;
       }
       break;
@@ -553,7 +575,7 @@ void navigateMenuForward() {
       else if (menuIndex == 1) currentMenuState = MIDI_CHANNEL;
       else if (menuIndex == 2) {
         currentMenuState = PARENT_MENU;
-        menuIndex = 8;
+        menuIndex = 3;
         return;
       }
       break;
@@ -566,7 +588,11 @@ void incrementMenuIndex() {
   switch(currentMenuState) {
     case PARENT_MENU:
       menuIndex++;
-      if (menuIndex > 9) menuIndex = 0; // Wrap to first item (now 9 items: 0-8)
+      if (menuIndex > 4) menuIndex = 0; // Parent menu now has 5 items (0-4)
+      break;
+    case PARAMETERS:
+      menuIndex++;
+      if (menuIndex > 6) menuIndex = 0; // Parameters has 7 items (0-6) including Back
       break;
     case VCO:
       menuIndex++;
@@ -605,7 +631,11 @@ void decrementMenuIndex() {
   switch(currentMenuState) {
     case PARENT_MENU:
       menuIndex--;
-      if (menuIndex < 0) menuIndex = 9; // Wrap to last item (now 9 items: 0-8)
+      if (menuIndex < 0) menuIndex = 4; // Wrap to last item (now 5 items: 0-4)
+      break;
+    case PARAMETERS:
+      menuIndex--;
+      if (menuIndex < 0) menuIndex = 6; // Parameters has 7 items (0-6) including Back
       break;
     case VCO:
       menuIndex--;
@@ -642,37 +672,41 @@ void decrementMenuIndex() {
 
 void navigateMenuBackward() {
   switch(currentMenuState) {
-    case VCO:
+    case PARAMETERS:
       currentMenuState = PARENT_MENU;
-      menuIndex = 1; // VCO position
+      menuIndex = 1; // PARAMETERS position
+      break;
+    case VCO:
+      currentMenuState = PARAMETERS;
+      menuIndex = 0; // VCO position in Parameters
       break;
     case SUB_NOISE:
-      currentMenuState = PARENT_MENU;
-      menuIndex = 2; // SUB_NOISE position
+      currentMenuState = PARAMETERS;
+      menuIndex = 1; // SUB_NOISE position in Parameters
       break;
     case LFO:
-      currentMenuState = PARENT_MENU;
-      menuIndex = 3; // LFO position
+      currentMenuState = PARAMETERS;
+      menuIndex = 2; // LFO position in Parameters
       break;
     case FILTER:
-      currentMenuState = PARENT_MENU;
-      menuIndex = 4; // FILTER position
+      currentMenuState = PARAMETERS;
+      menuIndex = 3; // FILTER position in Parameters
       break;
     case ENVELOPES:
-      currentMenuState = PARENT_MENU;
-      menuIndex = 5; // ENVELOPES position
+      currentMenuState = PARAMETERS;
+      menuIndex = 4; // ENVELOPES position in Parameters
       break;
     case CHORUS_MODE:
-      currentMenuState = PARENT_MENU;
-      menuIndex = 6; // CHORUS_MODE position
+      currentMenuState = PARAMETERS;
+      menuIndex = 5; // CHORUS_MODE position in Parameters
       break;
     case VOICE_MODE:
       currentMenuState = PARENT_MENU;
-      menuIndex = 7; // VOICE_MODE position
+      menuIndex = 2; // VOICE_MODE position in Parent
       break;
     case SETTINGS:
       currentMenuState = PARENT_MENU;
-      menuIndex = 8; // SETTINGS position
+      menuIndex = 3; // SETTINGS position in Parent
       break;
     default:
       break;
@@ -792,9 +826,9 @@ void updateParameterFromMenu(int paramIndex, float val) {
 void updateEncoderParameter(int paramIndex, int change) {
   float increment = 0.01; // Base increment
   switch (paramIndex) {
-    // VCO Volume controls - moderate sensitivity 
+    // VCO Volume controls - fine 128-step resolution
     case 0: case 2: case 3: case 4: // PWM Volume, Saw Volume, Sub Volume, Noise Volume
-      increment = 0.02; // Less sensitive for smooth volume control
+      increment = 1.0/128.0; // Exact 128-step resolution (0.0078125)
       break;
     case 1: // PWM Width - fine control
       increment = 1.0/128.0; // Fine control for pulse width
@@ -815,9 +849,9 @@ void updateEncoderParameter(int paramIndex, int change) {
       increment = 1.0/128.0;
       break;
     
-    // Chorus Mode - special discrete stepping
+    // Chorus Mode - discrete stepping like range controls
     case 22: // Chorus Mode
-      increment = 0.0; // Special handling below - don't use normal increment
+      increment = 0.25; // 4 modes: Off, I, II, I+II (0.125, 0.375, 0.625, 0.875)
       break;
     
     // Toggle/discrete controls - instant response  
@@ -840,25 +874,8 @@ void updateEncoderParameter(int paramIndex, int change) {
       break;
   }
   
-  // Special handling for Chorus Mode (discrete stepping)
-  if (paramIndex == 22) { // Chorus Mode
-    if (change > 0) { // Clockwise
-      float currentVal = allParameterValues[paramIndex];
-      if (currentVal < 0.25f) allParameterValues[paramIndex] = 0.375f;       // Off -> Chorus I
-      else if (currentVal < 0.5f) allParameterValues[paramIndex] = 0.625f;   // Chorus I -> Chorus II
-      else if (currentVal < 0.75f) allParameterValues[paramIndex] = 0.875f;  // Chorus II -> Chorus I+II
-      else allParameterValues[paramIndex] = 0.125f;                          // Chorus I+II -> Off
-    } else { // Counter-clockwise
-      float currentVal = allParameterValues[paramIndex];
-      if (currentVal < 0.25f) allParameterValues[paramIndex] = 0.875f;       // Off -> Chorus I+II
-      else if (currentVal < 0.5f) allParameterValues[paramIndex] = 0.125f;   // Chorus I -> Off
-      else if (currentVal < 0.75f) allParameterValues[paramIndex] = 0.375f;  // Chorus II -> Chorus I
-      else allParameterValues[paramIndex] = 0.625f;                          // Chorus I+II -> Chorus II
-    }
-  } else {
-    // Normal parameter handling
-    allParameterValues[paramIndex] = constrain(allParameterValues[paramIndex] + (change * increment), 0.0, 1.0);
-  }
+  // Normal parameter handling with bounds checking (no endless cycling)
+  allParameterValues[paramIndex] = constrain(allParameterValues[paramIndex] + (change * increment), 0.0, 1.0);
   
   float val = allParameterValues[paramIndex];
   

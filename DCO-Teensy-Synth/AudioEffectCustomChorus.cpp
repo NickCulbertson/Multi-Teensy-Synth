@@ -1,16 +1,5 @@
 // AudioEffectCustomChorus.cpp
 //
-// Fixes “sounds stereo but meters look mono” by ensuring L/R are decorrelated
-// in a controlled, Juno-ish way *without* reintroducing the old block-stepping bug.
-//
-// Key changes vs what you pasted:
-// 1) Mode 3 (I+II) now uses stereo inversion again (phase + 0.5 on right)
-//    so it *measures* stereo. (Your previous “no invert” makes it correlate.)
-// 2) Optional tiny static delay offset on RIGHT (all modes) to guarantee width
-//    even when dry dominates. This is subtle (few samples) and safe.
-// 3) Keeps per-sample phase advance on both channels + block phase latch,
-//    so no stair-step artifacts.
-//
 // NOTE: This effect outputs 100% WET. Mix dry externally (your finalMixL/R)
 // on different mixer inputs (0=dry, 1=wet).
 
@@ -24,7 +13,6 @@ uint8_t AudioEffectCustomChorus::shared_block_consumers   = 0;
 bool    AudioEffectCustomChorus::shared_block_valid       = false;
 bool    AudioEffectCustomChorus::shared_block_end_ready   = false;
 
-// Juno-ish rates (Hz). Tweak by ear.
 const float AudioEffectCustomChorus::LFO_RATES[4] = {
   0.0f,  // off
   0.5f,  // I  (triangle)

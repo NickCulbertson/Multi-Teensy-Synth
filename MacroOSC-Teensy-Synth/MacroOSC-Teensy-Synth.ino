@@ -2,39 +2,19 @@
  * Braids-Teensy Synth v1.0
  * A polyphonic macro-oscillator synthesizer built with the Teensy 4.1 microcontroller,
  * using the Mutable Instruments Braids sound engine with intuitive menu control.
- * 
- * REQUIRED LIBRARIES (install via Arduino Library Manager):
- * - LiquidCrystal I2C (by Frank de Brabander) - for LCD display
- * - Adafruit SSD1306 (by Adafruit) - for OLED display  
- * - Adafruit GFX Library (by Adafruit) - for OLED display
- * - Encoder (by Paul Stoffregen) 
- * - MIDI Library (by Francois Best) - only needed if enabling DIN MIDI
- * 
- * Built-in Teensy libraries (no installation needed):
- * - Audio, Wire, USBHost_t36
  */
 
 #define NUM_PARAMETERS 22  // Braids with Moog filter (removed Filter Mode, using fixed lowpass)
-#define NUM_PRESETS 8      // Braids has 8 built-in presets
+#define NUM_PRESETS 12      // Braids has 8 built-in presets
 #define VOICES 6           // Braids supports up to 6 voices (resource intensive)
 
 #include "config.h"
 #include "MenuNavigation.h"
 
-// Braids presets (exact copy from working Multi-Teensy-Synth-copy)
-const BraidsPreset braidsPresets[NUM_PRESETS] = {
-  {"CSaw Lead", 0, 64, 32, 5, 20, 100, 50, 40, 3000, 30},       // Classic saw lead
-  {"Sine Pad", 8, 20, 80, 40, 80, 120, 100, 60, 1500, 10},     // Sine wave pad
-  {"FM Bell", 16, 90, 60, 10, 60, 80, 80, 50, 4000, 20},       // FM-style bell
-  {"Noise Drum", 24, 127, 100, 1, 30, 0, 20, 30, 2000, 50},    // Percussion
-  {"Vocal Formant", 32, 80, 90, 15, 40, 90, 60, 50, 2500, 40}, // Vocal-like
-  {"Digital Harsh", 40, 120, 127, 5, 25, 70, 30, 40, 5000, 80}, // Digital/harsh
-  {"Analog Sync", 4, 100, 70, 8, 35, 85, 45, 50, 3500, 60},    // Sync sweep
-  {"Pluck Bass", 12, 60, 40, 3, 15, 60, 25, 30, 800, 20},      // Bass pluck
-};
+
 
 // Project strings
-const char* PROJECT_NAME = "Braids Synth";
+const char* PROJECT_NAME = "MacroOSC Synth";
 const char* PROJECT_SUBTITLE = "Macro Oscillator";
 
 #include <USBHost_t36.h>
@@ -102,13 +82,13 @@ const int encoderMapping[19] = {
   ENC_17_PARAM, ENC_18_PARAM, ENC_19_PARAM, ENC_20_PARAM                // 15-18: enc17-enc20
 };
 
+
 long encoderValues[19] = {0};
 long lastEncoderValues[19] = {0};
 
 // Braids preset selection
 int currentPreset = 0;
 
-// Braids parameters (removed Filter Mode, using fixed Moog lowpass)
 float braidsParameters[NUM_PARAMETERS] = {
   30.0,   // 0: Shape (0-42)
   64.0,   // 1: Timbre (0-127)  
@@ -125,7 +105,7 @@ float braidsParameters[NUM_PARAMETERS] = {
   30.0,   // 12: Filter Decay (0-127)
   80.0,   // 13: Filter Sustain (0-127)
   50.0,   // 14: Filter Release (0-127)
-  80.0,   // 15: Volume (0-127)
+  127.0,  // 15: Volume (0-127)
   5.0,    // 16: LFO Rate (0.1-20 Hz)
   0.0,    // 17: LFO>Timbre (0-100%)
   0.0,    // 18: LFO>Color (0-100%)
@@ -249,7 +229,7 @@ Voice voices[VOICES];
 int currentVoice = 0; // Round-robin voice allocation counter
 
 // Filter envelope parameters (matching Mini-Teensy)
-float filtAttack = 100, filtSustain = 0.5, filtDecay = 2500; // Filter envelope timing
+float filtAttack = 100, filtSustain = 0.5, filtDecay = 2500, filtRelease = 2500; // Filter envelope timing
 float filterStrength = 0.5; // DC amplitude for filter envelope
 
 // Display objects
@@ -342,60 +322,38 @@ void handleControlChange(int cc, int value) {
     updateBraidsParameter(1, constrain(braidsParameters[1] + modAmount, 0.0f, 127.0f));
     
     // Track mod wheel change for display
-    if (!inMenu) {
-      lastChangedParam = -1;  // Special flag for non-parameter controls
-      lastChangedName = "Mod Wheel";
-      lastChangedValue = value;  // Use raw 0-127 value for display
-      parameterChanged = true;
-    }
+    lastChangedParam = -1;  // Special flag for non-parameter controls
+    lastChangedName = "Mod Wheel";
+    lastChangedValue = value;  // Use raw 0-127 value for display
+    parameterChanged = true;
     return;
   }
   
   // Map CC numbers to Braids parameter indices
   int paramIndex = -1;
   
-  // if (cc == CC_SHAPE) paramIndex = 0;
-  // else if (cc == CC_TIMBRE) paramIndex = 1;
-  // else if (cc == CC_COLOR) paramIndex = 2;
-  // else if (cc == CC_COARSE) paramIndex = 3;
-  // else if (cc == CC_AMP_ATTACK) paramIndex = 4;
-  // else if (cc == CC_AMP_DECAY) paramIndex = 5;
-  // else if (cc == CC_AMP_SUSTAIN) paramIndex = 6;
-  // else if (cc == CC_AMP_RELEASE) paramIndex = 7;
-  // else if (cc == CC_FILTER_CUTOFF) paramIndex = 8;
-  // else if (cc == CC_FILTER_RES) paramIndex = 9;
-  // else if (cc == CC_FILTER_STR) paramIndex = 10;
-  // else if (cc == CC_FILT_ATTACK) paramIndex = 11;
-  // else if (cc == CC_FILT_DECAY) paramIndex = 12;
-  // else if (cc == CC_FILT_SUSTAIN) paramIndex = 13;
-  // else if (cc == CC_FILT_RELEASE) paramIndex = 14;
-  // else if (cc == CC_VOLUME) paramIndex = 15;
-  // else if (cc == CC_LFO_RATE) paramIndex = 16;
-  // else if (cc == CC_LFO_TIMBRE) paramIndex = 17;
-  // else if (cc == CC_LFO_COLOR) paramIndex = 18;
-  // else if (cc == CC_LFO_PITCH) paramIndex = 19;
-  // else if (cc == CC_LFO_FILTER) paramIndex = 20;
-  // else if (cc == CC_LFO_VOLUME) paramIndex = 21;
-
-
-  if (cc == CC_1_PARAM) paramIndex = ENC_1_PARAM;        // Shape
-  else if (cc == CC_2_PARAM) paramIndex = ENC_2_PARAM;   // Timber
-  else if (cc == CC_3_PARAM) paramIndex = ENC_3_PARAM;   //Color
-  else if (cc == CC_4_PARAM) paramIndex = ENC_4_PARAM;   //Coarse
-  else if (cc == CC_5_PARAM) paramIndex = ENC_5_PARAM;   //Amp Attack
-  else if (cc == CC_6_PARAM) paramIndex = ENC_6_PARAM;   //Amp Decay
-  else if (cc == CC_7_PARAM) paramIndex = ENC_7_PARAM;   //Amp Sustain
-  else if (cc == CC_8_PARAM) paramIndex = ENC_8_PARAM;   //Amp Release
-  else if (cc == CC_9_PARAM) paramIndex = ENC_9_PARAM;   //Cutoff
-  else if (cc == CC_10_PARAM) paramIndex = ENC_10_PARAM; //Res
-  else if (cc == CC_11_PARAM) paramIndex = ENC_11_PARAM; //Filter Strength
-  else if (cc == CC_12_PARAM) paramIndex = MENU_ENCODER_PARAM;
-  else if (cc == CC_13_PARAM) paramIndex = ENC_13_PARAM; //Filter Attack
-  else if (cc == CC_14_PARAM) paramIndex = ENC_14_PARAM; //Filter Decay
-  else if (cc == CC_15_PARAM) paramIndex = ENC_15_PARAM; //Filter Sustain
-  else if (cc == CC_16_PARAM) paramIndex = ENC_16_PARAM; //Filter Release
-  else if (cc == CC_17_PARAM) paramIndex = ENC_17_PARAM; //Volume
-  else if (cc == CC_18_PARAM) paramIndex = ENC_18_PARAM; //LFO Rate
+  // Map CCs directly to parameter indices for MacroOSC Braids synth
+  // Only map CCs that are actually defined in config (CC_1_PARAM through CC_18_PARAM)
+  if (cc == CC_1_PARAM) paramIndex = 0;        // Shape
+  else if (cc == CC_2_PARAM) paramIndex = 1;   // Timbre
+  else if (cc == CC_3_PARAM) paramIndex = 2;   // Color
+  else if (cc == CC_4_PARAM) paramIndex = 3;   // Coarse
+  else if (cc == CC_5_PARAM) paramIndex = 4;   // Amp Attack
+  else if (cc == CC_6_PARAM) paramIndex = 5;   // Amp Decay
+  else if (cc == CC_7_PARAM) paramIndex = 6;   // Amp Sustain
+  else if (cc == CC_8_PARAM) paramIndex = 7;   // Amp Release
+  else if (cc == CC_9_PARAM) paramIndex = 8;   // Filter Cutoff
+  else if (cc == CC_10_PARAM) paramIndex = 9;  // Filter Resonance
+  else if (cc == CC_11_PARAM) paramIndex = 10; // Filter Strength
+  else if (cc == CC_12_PARAM) paramIndex = 11; // Filter Attack
+  else if (cc == CC_13_PARAM) paramIndex = 12; // Filter Decay
+  else if (cc == CC_14_PARAM) paramIndex = 13; // Filter Sustain
+  else if (cc == CC_15_PARAM) paramIndex = 14; // Filter Release
+  else if (cc == CC_16_PARAM) paramIndex = 15; // Volume
+  else if (cc == CC_17_PARAM) paramIndex = 16; // LFO Rate
+  else if (cc == CC_18_PARAM) paramIndex = 17; // LFO>Timbre
+  // Note: CC_19_PARAM and CC_20_PARAM are set to -1 in config (disabled)
+  // Parameters 18-21 (LFO>Color, LFO>Pitch, LFO>Filter, LFO>Volume) have no CC mappings
 
   
   // Update parameter if mapped
@@ -403,21 +361,26 @@ void handleControlChange(int cc, int value) {
     updateBraidsParameter(paramIndex, paramValue);
     
     // Track parameter change for display
-    if (!inMenu) {
-      lastChangedParam = paramIndex;
-      lastChangedValue = paramValue;
-      lastChangedName = controlNames[paramIndex];
-      parameterChanged = true;
-    }
+    lastChangedParam = paramIndex;
+    lastChangedValue = paramValue;
+    lastChangedName = controlNames[paramIndex];
+    parameterChanged = true;
   }
 }
 
 void handleProgramChange(int program) {
-  // Map program change 0-127 to Braids presets 0-7
+  // Map program change 0-127 to Braids presets 0-11
   int presetIndex = program % NUM_PRESETS;
   loadPreset(presetIndex);
   Serial.print("Program change to preset: ");
   Serial.println(presetIndex);
+  
+  // Update display to show preset name
+  if (!inMenu) {
+    String line1 = "Preset " + String(presetIndex + 1);
+    String line2 = String(presets[presetIndex].name);
+    displayText(line1, line2);
+  }
 }
 
 // Display feedback function for MIDI CC changes
@@ -514,9 +477,7 @@ void OnUSBHostPitchBend(byte channel, int bend) {
 
 void setup() {
   Serial.begin(115200);
-  
-  // Audio setup
-  AudioMemory(60); // Braids needs more memory due to wavetables
+  AudioMemory(48); // Braids may needs more memory due to wavetables 60
   
 #ifdef USE_TEENSY_DAC
   sgtl5000_1.enable();
@@ -542,7 +503,7 @@ void setup() {
     filtEnv[v].attack(filtAttack);
     filtEnv[v].sustain(filtSustain);
     filtEnv[v].decay(filtDecay);
-    filtEnv[v].release(filtDecay);
+    filtEnv[v].release(filtRelease);
     
     // Configure Moog ladder filter (matching Mini-Teensy)
     float val = braidsParameters[8] / 127.0;
@@ -611,7 +572,7 @@ void setup() {
     filtEnv[v].attack(filtAttack);
     filtEnv[v].sustain(filtSustain);
     filtEnv[v].decay(filtDecay);
-    filtEnv[v].release(filtDecay);
+    filtEnv[v].release(filtRelease);
   }
   
   // Initialize Braids parameters
@@ -661,7 +622,7 @@ void setup() {
   display.sendBuffer();
 #endif
   
-  Serial.println("MacroOscillator-Teensy Synth initialized");
+  Serial.println("MacroOSC-Teensy Synth initialized");
   Serial.println("Parameters: 22 Braids synthesizer parameters");
   
 #ifdef USE_USB_AUDIO
@@ -669,33 +630,7 @@ void setup() {
 #endif
 #ifdef USE_TEENSY_DAC
   Serial.println("Audio output: Teensy Audio Shield (I2S)");
-#endif
-
-  Serial.println("MIDI CC mapping:");
-  Serial.print("  Shape: CC"); Serial.println(CC_SHAPE);
-  Serial.print("  Timbre: CC"); Serial.println(CC_TIMBRE);
-  Serial.print("  Color: CC"); Serial.println(CC_COLOR);
-  Serial.print("  Coarse: CC"); Serial.println(CC_COARSE);
-  Serial.print("  Amp Attack: CC"); Serial.println(CC_AMP_ATTACK);
-  Serial.print("  Amp Decay: CC"); Serial.println(CC_AMP_DECAY);
-  Serial.print("  Amp Sustain: CC"); Serial.println(CC_AMP_SUSTAIN);
-  Serial.print("  Amp Release: CC"); Serial.println(CC_AMP_RELEASE);
-  Serial.print("  Filter Cutoff: CC"); Serial.println(CC_FILTER_CUTOFF);
-  Serial.print("  Filter Resonance: CC"); Serial.println(CC_FILTER_RES);
-  Serial.print("  Filter Strength: CC"); Serial.println(CC_FILTER_STR);
-  Serial.print("  Filter Attack: CC"); Serial.println(CC_FILT_ATTACK);
-  Serial.print("  Filter Decay: CC"); Serial.println(CC_FILT_DECAY);
-  Serial.print("  Filter Sustain: CC"); Serial.println(CC_FILT_SUSTAIN);
-  Serial.print("  Filter Release: CC"); Serial.println(CC_FILT_RELEASE);
-  Serial.print("  Volume: CC"); Serial.println(CC_VOLUME);
-  Serial.print("  LFO Rate: CC"); Serial.println(CC_LFO_RATE);
-  Serial.print("  LFO to Timbre: CC"); Serial.println(CC_LFO_TIMBRE);
-  Serial.print("  LFO to Color: CC"); Serial.println(CC_LFO_COLOR);
-  Serial.print("  LFO to Pitch: CC"); Serial.println(CC_LFO_PITCH);
-  Serial.print("  LFO to Filter: CC"); Serial.println(CC_LFO_FILTER);
-  Serial.print("  LFO to Volume: CC"); Serial.println(CC_LFO_VOLUME);
-  Serial.println("Program changes: 0-7 for preset selection");
-  
+#endif  
   delay(2000);
   updateDisplay();
   Serial.print(PROJECT_NAME);
@@ -827,7 +762,6 @@ void updateBraidsParameter(int paramIndex, float value) {
         filtDecay = 10 + (value / 127.0) * 5000; // 10ms to 5000ms like Mini-Teensy
         for (int v = 0; v < VOICES; v++) {
           filtEnv[v].decay(filtDecay);
-          filtEnv[v].release(filtDecay); // Use same value for release
         }
         break;
       case 13: // Filter Sustain (0-127) - moved from index 14
@@ -837,11 +771,9 @@ void updateBraidsParameter(int paramIndex, float value) {
         }
         break;
       case 14: // Filter Release (0-127) - moved from index 15
-        // In Mini-Teensy, release uses filtDecay value, so update both
-        filtDecay = 10 + (value / 127.0) * 5000; // 10ms to 5000ms like Mini-Teensy
+        filtRelease = 10 + (value / 127.0) * 5000; // 10ms to 5000ms like Mini-Teensy
         for (int v = 0; v < VOICES; v++) {
-          filtEnv[v].decay(filtDecay);
-          filtEnv[v].release(filtDecay);
+          filtEnv[v].release(filtRelease);
         }
         break;
       case 15: // Volume (0-127) - moved from index 16
@@ -935,41 +867,6 @@ void noteOff(uint8_t note) {
   }
 }
 
-// Load Braids preset (exact copy from working Multi-Teensy-Synth-copy)
-void loadPreset(int presetNum) {
-  presetNum = constrain(presetNum, 0, NUM_PRESETS - 1);
-  currentPreset = presetNum;
-  
-  const BraidsPreset& preset = braidsPresets[presetNum];
-  
-  // Update parameter array to match preset values
-  braidsParameters[0] = preset.shape;
-  braidsParameters[1] = preset.timbre;
-  braidsParameters[2] = preset.color;
-  braidsParameters[3] = preset.coarse;
-  braidsParameters[4] = preset.attack;
-  braidsParameters[5] = preset.decay;
-  braidsParameters[6] = preset.sustain;
-  braidsParameters[7] = preset.release;
-  braidsParameters[8] = (preset.filterFreq - 50) * 127.0 / (8000 - 50); // Filter Cutoff - moved to index 8
-  braidsParameters[9] = preset.filterRes; // Filter Resonance - moved to index 9
-  braidsParameters[10] = 50.0; // Filter strength (default)
-  braidsParameters[11] = 10.0; // Filter attack (default)
-  braidsParameters[12] = 30.0; // Filter decay (default)
-  braidsParameters[13] = 80.0; // Filter sustain (default)
-  braidsParameters[14] = 50.0; // Filter release (default)
-  braidsParameters[15] = 80.0; // Volume (default)
-  
-  // Apply all parameter values to synthesis engine
-  for (int i = 0; i < NUM_PARAMETERS; i++) {
-    updateBraidsParameter(i, braidsParameters[i]);
-  }
-  
-  Serial.print("Loaded Braids preset ");
-  Serial.print(presetNum + 1);
-  Serial.print(": ");
-  Serial.println(preset.name);
-}
 
 // Update encoder parameter with proper scaling (matches EPiano pattern)
 void updateEncoderParameter(int paramIndex, int change) {
@@ -989,10 +886,9 @@ void updateEncoderParameter(int paramIndex, int change) {
   
   updateBraidsParameter(paramIndex, braidsParameters[paramIndex]);
   
-  // Display parameter change when not in menu
-  if (!inMenu) {
-    String line1 = controlNames[paramIndex];
-    String line2;
+  // Display parameter change
+  String line1 = controlNames[paramIndex];
+  String line2;
     
     if (paramIndex == 0) { // Shape parameter - show algorithm name
       int shapeIndex = (int)braidsParameters[paramIndex];
@@ -1013,7 +909,6 @@ void updateEncoderParameter(int paramIndex, int change) {
     }
     
     displayText(line1, line2);
-  }
 }
 
 // LFO modulation update (Juno-style with simultaneous modulation)
@@ -1033,11 +928,9 @@ void updateLFOModulation() {
   float lfoSignal = sin(phase);
   
   // Apply modulation to each target if depth > 0.01
-  bool anyLfoActive = false;
   
   // Timbre modulation (Braids-specific) - need to scale to 16-bit like normal updates
   if (lfoTimbreDepth > 0.01) {
-    anyLfoActive = true;
     float timbreModulation = lfoSignal * lfoTimbreDepth * 20.0; // ±20 timbre units
     float baseTimbre = braidsParameters[1];
     float modTimbre = constrain(baseTimbre + timbreModulation, 0.0, 127.0);
@@ -1057,8 +950,7 @@ void updateLFOModulation() {
   
   // Color modulation (Braids-specific) - need to scale to 16-bit like normal updates
   if (lfoColorDepth > 0.01) {
-    anyLfoActive = true;
-    float colorModulation = lfoSignal * lfoColorDepth * 20.0; // ±20 color units
+        float colorModulation = lfoSignal * lfoColorDepth * 20.0; // ±20 color units
     float baseColor = braidsParameters[2];
     float modColor = constrain(baseColor + colorModulation, 0.0, 127.0);
     for (int v = 0; v < VOICES; v++) {
@@ -1077,8 +969,7 @@ void updateLFOModulation() {
   
   // Pitch modulation
   if (lfoPitchDepth > 0.01) {
-    anyLfoActive = true;
-    float pitchModulation = lfoSignal * lfoPitchDepth * 0.02; // ±2% for Braids pitch format
+        float pitchModulation = lfoSignal * lfoPitchDepth * 0.02; // ±2% for Braids pitch format
     float pitchLFOMultiplier = 1.0 + pitchModulation;
     for (int v = 0; v < VOICES; v++) {
       if (voices[v].active) {
@@ -1102,8 +993,7 @@ void updateLFOModulation() {
   float val = braidsParameters[8] / 127.0;
   float baseCutoff = 20 * pow(1000.0, val); // Base filter cutoff
   if (lfoFilterDepth > 0.01) {
-    anyLfoActive = true;
-    float filterModulation = lfoSignal * lfoFilterDepth * 1000.0; // ±1000 Hz like Juno
+        float filterModulation = lfoSignal * lfoFilterDepth * 1000.0; // ±1000 Hz like Juno
     float modulatedCutoff = constrain(baseCutoff + filterModulation, 20.0, 20000.0);
     for (int v = 0; v < VOICES; v++) {
       braidsFilter[v].frequency(modulatedCutoff);
@@ -1118,8 +1008,7 @@ void updateLFOModulation() {
   // Volume modulation
   float baseVolume = braidsParameters[15] / 127.0;
   if (lfoVolumeDepth > 0.01) {
-    anyLfoActive = true;
-    float volumeModulation = lfoSignal * lfoVolumeDepth * 0.3; // ±30% amplitude like Juno
+        float volumeModulation = lfoSignal * lfoVolumeDepth * 0.3; // ±30% amplitude like Juno
     float ampMultiplier = 1.0 + volumeModulation;
     float modVolume = constrain(baseVolume * ampMultiplier, 0.0, 1.0);
     braidsFinalMix.gain(0, 0.5 * modVolume); // braidsMix1 (voices 0-3)
@@ -1175,9 +1064,14 @@ void loop() {
   updateLFOModulation();
   
   // Update display if parameter changed during this loop iteration
-  if (parameterChanged && !inMenu) {
+  if (parameterChanged) {
+    // If we were in menu mode, exit menu to show MIDI parameter
+    if (inMenu) {
+      inMenu = false;
+    }
+    
     if (lastChangedParam >= 0) {
-      // Use the specialized display function for MacroOscillator
+      // Use the specialized display function for MacroOSC
       updateParameterDisplay(lastChangedParam, lastChangedValue);
     } else {
       // For mod wheel and other non-parameter controls

@@ -2,38 +2,27 @@
  * FM-Teensy Synth v1.0
  * A polyphonic FM synthesizer built with the Teensy 4.1 microcontroller,
  * using the Dexed DX7-compatible sound engine with intuitive menu control.
- * 
- * REQUIRED LIBRARIES (install via Arduino Library Manager):
- * - LiquidCrystal I2C (by Frank de Brabander) - for LCD display
- * - Adafruit SSD1306 (by Adafruit) - for OLED display  
- * - Adafruit GFX Library (by Adafruit) - for OLED display
- * - Encoder (by Paul Stoffregen) 
- * - MIDI Library (by Francois Best) - only needed if enabling DIN MIDI
- * 
- * Built-in Teensy libraries (no installation needed):
- * - Audio, Wire, USBHost_t36
  */
 
 #define NUM_PARAMETERS 10  // FM has 10 essential real-time parameters
-#define NUM_PRESETS 32     // DX7 has 32 presets per bank
-#define VOICES 16          // DX7 supports up to 16 voices
+#define NUM_PRESETS 32     // 32 presets per bank
+#define VOICES 16          // supports up to 16 voices
 
 #include "config.h"
 #include "MenuNavigation.h"
 
 // Project strings
 const char* PROJECT_NAME = "FM Synth";
-const char* PROJECT_SUBTITLE = "DX7 Compatible";
+const char* PROJECT_SUBTITLE = "Frequency Modulation";
 
 #include <USBHost_t36.h>
 #include <Audio.h>
 #include <Wire.h>
 #include <Encoder.h>
 
-// DX7/Dexed FM Synthesis Engine
 #define DX7_IMPLEMENTATION
 #include "src/Synth_Dexed/synth_dexed.h"
-#include "dx7_roms_unpacked.h"
+#include "roms_unpacked.h"
 
 #ifdef USE_LCD_DISPLAY
   #include <LiquidCrystal_I2C.h>
@@ -46,9 +35,6 @@ const char* PROJECT_SUBTITLE = "DX7 Compatible";
   #define OLED_RESET -1
 #endif
 
-// ============================================================================
-// MIDI Setup
-// ============================================================================
 
 #ifdef USE_MIDI_HOST
 USBHost myusb;
@@ -95,11 +81,10 @@ const int encoderMapping[19] = {
 long encoderValues[19] = {0};
 long lastEncoderValues[19] = {0};
 
-// DX7 bank/patch selection
-int currentDX7Preset = 0;  // Currently loaded preset (0-31)
-int currentDX7Bank = 0;    // Currently loaded bank (0-7)
-int dx7BankIndex = 0;      // Bank browser index
-int dx7PatchIndex = 0;     // Patch browser index
+int currentPreset = 0;  // Currently loaded preset (0-31)
+int currentBank = 0;    // Currently loaded bank (0-7)
+int BankIndex = 0;      // Bank browser index
+int PatchIndex = 0;     // Patch browser index
 
 // Default parameter values for FM synthesis (0.0-1.0 normalized)
 float allParameterValues[NUM_PARAMETERS] = {
@@ -116,7 +101,7 @@ float allParameterValues[NUM_PARAMETERS] = {
 };
 
 // FM synthesis objects
-AudioSynthDexed       dexed(VOICES, AUDIO_SAMPLE_RATE);  // DX7-compatible FM synthesis with 16 voices
+AudioSynthDexed       dexed(VOICES, AUDIO_SAMPLE_RATE); 
 
 #ifdef USE_USB_AUDIO
 AudioOutputUSB        usb1;            // USB audio output (stereo)
@@ -172,9 +157,6 @@ bool parameterChanged = false;
 
 
 
-// ============================================================================
-// Centralized MIDI Handler
-// ============================================================================
 
 void processMidiMessage(byte type, byte channel, byte data1, byte data2) {
   // Filter by MIDI channel (0 = omni, 1-16 = specific channel)
@@ -221,12 +203,10 @@ void handleControlChange(int cc, int value) {
     dexed.setModWheel(value);
     
     // Track mod wheel change for display
-    if (!inMenu) {
-      lastChangedParam = -1;  // Special flag for non-parameter controls
-      lastChangedName = "Mod Wheel";
-      lastChangedValue = value;  // Use raw 0-127 value for display
-      parameterChanged = true;
-    }
+    lastChangedParam = -1;  // Special flag for non-parameter controls
+    lastChangedName = "Mod Wheel";
+    lastChangedValue = value;  // Use raw 0-127 value for display
+    parameterChanged = true;
     return;
   }
   
@@ -261,12 +241,10 @@ void handleControlChange(int cc, int value) {
     updateParameterFromMenu(paramIndex, paramValue);
     
     // Track parameter change for display
-    if (!inMenu) {
-      lastChangedParam = paramIndex;
-      lastChangedValue = paramValue;
-      lastChangedName = controlNames[paramIndex];
-      parameterChanged = true;
-    }
+    lastChangedParam = paramIndex;
+    lastChangedValue = paramValue;
+    lastChangedName = controlNames[paramIndex];
+    parameterChanged = true;
   }
 }
 
@@ -275,11 +253,29 @@ void handleProgramChange(int program) {
   int bankIndex = (program / 32) % 8;    // 8 banks available (0-7)
   int patchIndex = program % 32;         // 32 patches per bank (0-31)
   
-  loadDX7Preset(program); 
+  // Set the bank and load the patch
+  currentBank = bankIndex;
+  BankIndex = bankIndex;
+  loadPreset(patchIndex); 
+  
   Serial.print("Program change to bank: ");
   Serial.print(bankIndex);
   Serial.print(" patch: ");
   Serial.println(patchIndex);
+  
+  // Update display to show preset name
+  String line1 = String(BankNames[currentBank]);
+  
+  // Extract patch name for display
+  char voice_name[11];
+  memset(voice_name, 0, 11);
+  memcpy(voice_name, &progmem_bank[currentBank][patchIndex][144], 10);
+  // Clean up non-printable characters
+  for (int i = 0; i < 10; i++) {
+    if (voice_name[i] < 32 || voice_name[i] > 126) voice_name[i] = ' ';
+  }
+  String line2 = String(patchIndex + 1) + ". " + String(voice_name).trim();
+  displayText(line1, line2);
 }
 
 void setup() {
@@ -329,8 +325,6 @@ void setup() {
     lastEncoderValues[i] = 0;
   }
   
-  // Initialize DX7 FM synthesis engine
-  Serial.println("Initializing DX7 FM synthesis engine...");
   dexed.setEngineType(0); // MSFA engine (warmest, no pops)
   dexed.loadInitVoice();
   dexed.setTranspose(12); // Center at middle C
@@ -341,9 +335,9 @@ void setup() {
   }
 
   // Load first preset from ROM (bank 0, patch 0)
-  currentDX7Bank = 0;
-  currentDX7Preset = 0;
-  loadDX7Preset(0);
+  currentBank = 0;
+  currentPreset = 0;
+  loadPreset(0);
   
   delay(100);
   
@@ -483,22 +477,87 @@ void updateSynthParameter(int paramIndex, float val) {
   }
 }
 
-// DX7 preset loading
-void loadDX7Preset(int presetNum) {
+void loadPreset(int presetNum) {
   presetNum = constrain(presetNum, 0, 31);
-  currentDX7Preset = presetNum;
-  dexed.loadVoiceParameters(progmem_bank[currentDX7Bank][presetNum]);
-  
-  Serial.print("Loaded DX7 preset ");
-  Serial.print(presetNum);
-  Serial.print(": ");
+  currentPreset = presetNum;
+  dexed.loadVoiceParameters(progmem_bank[currentBank][presetNum]);
   
   // Extract patch name for display
   char voice_name[11];
   memset(voice_name, 0, 11);
-  memcpy(voice_name, &progmem_bank[currentDX7Bank][presetNum][144], 10);
+  memcpy(voice_name, &progmem_bank[currentBank][presetNum][144], 10);
+  // Clean up non-printable characters
+  for (int i = 0; i < 10; i++) {
+    if (voice_name[i] < 32 || voice_name[i] > 126) voice_name[i] = ' ';
+  }
   Serial.println(voice_name);
   
+  // Sync encoder positions to match loaded preset values
+  syncEncodersToPreset();
+}
+
+// Function to sync encoder positions to current parameter values from Dexed engine
+void syncEncodersToPreset() {
+  Serial.println("Reading parameter values from Dexed engine and syncing encoders...");
+  
+  // Read current parameter values from the Dexed engine and update our tracking array
+  allParameterValues[0] = dexed.getAlgorithm() / 31.0f;        // Algorithm (0-31)
+  allParameterValues[1] = dexed.getFeedback() / 7.0f;          // Feedback (0-7)
+  allParameterValues[2] = dexed.getLFOSpeed() / 99.0f;         // LFO Speed (0-99)
+  allParameterValues[3] = dexed.getGain() / 2.0f;              // Master Volume (0.0-2.0)
+  allParameterValues[4] = dexed.getOPOutputLevel(0) / 99.0f;   // OP1 Output Level (0-99)
+  allParameterValues[5] = dexed.getOPOutputLevel(1) / 99.0f;   // OP2 Output Level (0-99)
+  allParameterValues[6] = dexed.getOPOutputLevel(2) / 99.0f;   // OP3 Output Level (0-99)
+  allParameterValues[7] = dexed.getOPOutputLevel(3) / 99.0f;   // OP4 Output Level (0-99)
+  allParameterValues[8] = dexed.getOPOutputLevel(4) / 99.0f;   // OP5 Output Level (0-99)
+  allParameterValues[9] = dexed.getOPOutputLevel(5) / 99.0f;   // OP6 Output Level (0-99)
+  
+  // Now sync encoder positions to the updated parameter values
+  for (int i = 0; i < 19; i++) {
+    int paramIndex = encoderMapping[i];
+    if (paramIndex >= 0 && paramIndex < NUM_PARAMETERS) {
+      // Convert parameter value (0.0-1.0) to encoder position
+      float paramValue = allParameterValues[paramIndex];
+      long newEncoderPosition;
+      
+      // Scale encoder position based on parameter type
+      if (paramIndex == 0) {
+        // Algorithm: 0-31 (32 steps)
+        newEncoderPosition = (long)(paramValue * 31.0f) * 4;
+      } else if (paramIndex == 1) {
+        // Feedback: 0-7 (8 steps) 
+        newEncoderPosition = (long)(paramValue * 7.0f) * 4;
+      } else {
+        // Other parameters: 0-127 equivalent
+        newEncoderPosition = (long)(paramValue * 127.0f) * 4;
+      }
+      
+      // Update encoder position to match parameter value
+      switch(i) {
+        case 0: enc1.write(newEncoderPosition); break;
+        case 1: enc2.write(newEncoderPosition); break;
+        case 2: enc3.write(newEncoderPosition); break;
+        case 3: enc4.write(newEncoderPosition); break;
+        case 4: enc5.write(newEncoderPosition); break;
+        case 5: enc6.write(newEncoderPosition); break;
+        case 6: enc7.write(newEncoderPosition); break;
+        case 7: enc8.write(newEncoderPosition); break;
+        case 8: enc9.write(newEncoderPosition); break;
+        case 9: enc10.write(newEncoderPosition); break;
+        case 10: enc11.write(newEncoderPosition); break;
+        case 11: enc13.write(newEncoderPosition); break;
+        case 12: enc14.write(newEncoderPosition); break;
+        case 13: enc15.write(newEncoderPosition); break;
+        case 14: enc16.write(newEncoderPosition); break;
+        case 15: enc17.write(newEncoderPosition); break;
+        case 16: enc18.write(newEncoderPosition); break;
+        case 17: enc19.write(newEncoderPosition); break;
+        case 18: enc20.write(newEncoderPosition); break;
+      }
+      encoderValues[i] = newEncoderPosition / 4;
+      lastEncoderValues[i] = encoderValues[i];
+    }
+  }
 }
 
 void loop() {
@@ -526,7 +585,11 @@ void loop() {
   handleEncoder();
   
   // Update display if parameter changed during this loop iteration
-  if (parameterChanged && !inMenu) {
+  if (parameterChanged) {
+    // If we were in menu mode, exit menu to show MIDI parameter
+    if (inMenu) {
+      inMenu = false;
+    }
     String line2 = "";
     
     if (lastChangedParam >= 0) {
@@ -542,17 +605,8 @@ void loop() {
       // For mod wheel and other non-parameter controls
       line2 = String((int)lastChangedValue);
     }
-    
     displayText(lastChangedName, line2);
     parameterChanged = false;
-  }
-  
-  // Minimal serial input check for performance
-  if (Serial.available()) {
-    char input = Serial.read();
-    if (input == 'r' || input == 'R') {
-      resetEncoderBaselines();
-    }
   }
   delay(5);
 }

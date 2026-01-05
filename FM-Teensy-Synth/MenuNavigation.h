@@ -15,10 +15,8 @@ enum MenuState {
   PARENT_MENU,
   FM_MENU,
   SETTINGS,
-  
-  // DX7 preset browsing
-  DX7_BANKS,     // DX7 bank selection menu
-  DX7_PATCHES,   // DX7 patch selection within a bank
+  BANKS, 
+  PATCHES,  
   
   // FM parameter sub-menus
   FM_ALGORITHM,
@@ -78,13 +76,12 @@ void resetEncoderBaselines();
 
 // Preset functions
 
-// DX7 bank/patch selection
-extern int currentDX7Bank;    // Currently selected bank (0-7)
-extern int dx7BankIndex;      // Bank browser index (0 to NUM_DX7_BANKS)
-extern int dx7PatchIndex;     // Patch browser index (0-32)
-extern const char* dx7BankNames[];   // Bank names (size determined by sysex2c.py)
+extern int currentBank;    
+extern int BankIndex;      
+extern int PatchIndex;     // Patch browser index (0-32)
+extern const char* BankNames[];   // Bank names (size determined by sysex2c.py)
 
-extern void loadDX7Preset(int presetIndex);
+extern void loadPreset(int presetIndex);
 void printCurrentPresetValues();
 
 #endif // MENU_NAVIGATION_H

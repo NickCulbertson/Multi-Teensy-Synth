@@ -2,16 +2,9 @@
  * EPiano-Teensy Synth v1.0
  * A 16-voice polyphonic electric piano synthesizer built with the Teensy 4.1 microcontroller, 
  * featuring the MDA EPiano synthesis engine with real-time parameter control.
- * 
- * REQUIRED LIBRARIES (install via Arduino Library Manager):
- * - LiquidCrystal I2C (by Frank de Brabander) - for LCD display
- * - Adafruit SSD1306 (by Adafruit) - for OLED display  
- * - Adafruit GFX Library (by Adafruit) - for OLED display
- * - Encoder (by Paul Stoffregen)
- * - MIDI Library (by Francois Best) - only needed if enabling DIN MIDI
  */
 
-#define NUM_PARAMETERS 12
+#define NUM_PARAMETERS 13
 #define VOICES 16
 
 #include "config.h"
@@ -26,9 +19,6 @@ const char* PROJECT_SUBTITLE = "16-Voice MDA";
 #include <Encoder.h>
 #include "src/synth_mda_epiano.h"
 
-// ============================================================================
-// Display Setup
-// ============================================================================
 
 #ifdef USE_LCD_DISPLAY
 #include <LiquidCrystal_I2C.h>
@@ -44,9 +34,6 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 #endif
 
-// ============================================================================
-// Audio Setup
-// ============================================================================
 
 AudioSynthEPiano ep(VOICES);    // 16-voice EPiano
 
@@ -63,9 +50,6 @@ AudioConnection patchCord3(ep, 0, i2s1, 0); // Left channel
 AudioConnection patchCord4(ep, 1, i2s1, 1); // Right channel
 #endif
 
-// ============================================================================
-// Encoder Setup
-// ============================================================================
 
 Encoder menuEncoder(MENU_ENCODER_CLK, MENU_ENCODER_DT);
 
@@ -74,9 +58,6 @@ Encoder* encoders[21];
 long encoderPositions[21] = {0};
 bool encoderBaselines[21] = {false};
 
-// ============================================================================
-// MIDI Setup
-// ============================================================================
 
 #ifdef USE_MIDI_HOST
 USBHost myusb;
@@ -89,9 +70,6 @@ MIDIDevice midi1(myusb);
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);
 #endif
 
-// ============================================================================
-// Parameter Storage
-// ============================================================================
 
 float allParameterValues[NUM_PARAMETERS];
 int currentPreset = 0;
@@ -106,9 +84,9 @@ bool parameterChanged = false;
 // Parameter names for display (declared in MenuNavigation.cpp)
 extern const char* controlNames[];
 
-// ============================================================================
-// Setup Functions
-// ============================================================================
+// EPiano presets array (declared in MenuNavigation.cpp)
+extern const EPianoPreset epianoPresets[];
+
 
 void setup() {
   Serial.begin(115200);
@@ -209,7 +187,7 @@ void setup() {
   Serial.print("  Stereo: CC"); Serial.println(CC_8_PARAM);
   Serial.print("  Tune: CC"); Serial.println(CC_9_PARAM);
   Serial.print("  Detune: CC"); Serial.println(CC_10_PARAM);
-  Serial.print("  Overdrive: CC"); Serial.println(CC_11_PARAM);
+  Serial.print("  Overdrive: CC"); Serial.println(CC_12_PARAM);
   Serial.print("  Volume: CC"); Serial.println(CC_VOLUME);
   Serial.println("Program changes: 0-4 for presets");
   
@@ -240,9 +218,6 @@ void setupEncoders() {
   // Encoders 13-20 are disabled (mapped to -1), so we don't initialize them
 }
 
-// ============================================================================
-// Parameter Update Function
-// ============================================================================
 
 void updateParameterFromMenu(int paramIndex, float val) {
   switch (paramIndex) {
@@ -287,9 +262,6 @@ void updateParameterFromMenu(int paramIndex, float val) {
   }
 }
 
-// ============================================================================
-// MIDI Functions
-// ============================================================================
 
 void noteOn(int note, int velocity) {
   ep.noteOn(note, velocity);
@@ -299,9 +271,6 @@ void noteOff(int note) {
   ep.noteOff(note);
 }
 
-// ============================================================================
-// Centralized MIDI Handler
-// ============================================================================
 
 void processMidiMessage(byte type, byte channel, byte data1, byte data2) {
   // Filter by MIDI channel (0 = omni, 1-16 = specific channel)
@@ -338,12 +307,10 @@ void handleControlChange(int cc, int value) {
   if (cc == CC_MODWHEEL) {
     // EPiano doesn't have built-in mod wheel support, just store the value for potential future use
     // Track mod wheel change for display
-    if (!inMenu) {
-      lastChangedParam = -1;  // Special flag for non-parameter controls
-      lastChangedName = "Mod Wheel";
-      lastChangedValue = value;  // Use raw 0-127 value for display
-      parameterChanged = true;
-    }
+    lastChangedParam = -1;  // Special flag for non-parameter controls
+    lastChangedName = "Mod Wheel";
+    lastChangedValue = value;  // Use raw 0-127 value for display
+    parameterChanged = true;
     return;
   }
   
@@ -351,12 +318,10 @@ void handleControlChange(int cc, int value) {
     ep.setVolume(paramValue);
     
     // Track volume change for display
-    if (!inMenu) {
-      lastChangedParam = -1;  // Special flag for non-parameter controls  
-      lastChangedName = "Volume";
-      lastChangedValue = value;  // Use raw 0-127 value for display
-      parameterChanged = true;
-    }
+    lastChangedParam = -1;  // Special flag for non-parameter controls  
+    lastChangedName = "Volume";
+    lastChangedValue = value;  // Use raw 0-127 value for display
+    parameterChanged = true;
     return;
   }
   
@@ -373,6 +338,7 @@ void handleControlChange(int cc, int value) {
   else if (cc == CC_9_PARAM) paramIndex = 8;   // Polyphony
   else if (cc == CC_10_PARAM) paramIndex = 9;  // Master Tune
   else if (cc == CC_11_PARAM) paramIndex = 10; // Detune
+  else if (cc == CC_12_PARAM) paramIndex = 11; // Overdrive
   
   // Update parameter if mapped
   if (paramIndex >= 0) {
@@ -380,12 +346,10 @@ void handleControlChange(int cc, int value) {
     updateParameterFromMenu(paramIndex, paramValue);
     
     // Track parameter change for display
-    if (!inMenu) {
-      lastChangedParam = paramIndex;
-      lastChangedValue = paramValue;
-      lastChangedName = controlNames[paramIndex];
-      parameterChanged = true;
-    }
+    lastChangedParam = paramIndex;
+    lastChangedValue = paramValue;
+    lastChangedName = controlNames[paramIndex];
+    parameterChanged = true;
   }
   // Also pass to EPiano engine for any internal handling
   ep.processMidiController(cc, value);
@@ -396,13 +360,15 @@ void handleProgramChange(int program) {
     loadPreset(program);
     Serial.print("Program change to preset: ");
     Serial.println(program);
+    
+    // Update display to show preset name
+    String line1 = "Preset " + String(program + 1);
+    String line2 = String(epianoPresets[program].name);
+    displayText(line1, line2);
   }
 }
 
 
-// ============================================================================
-// Encoder Functions
-// ============================================================================
 
 void readAllControls() {
   // Read all hardware encoders
@@ -481,9 +447,6 @@ void handleEncoder() {
 }
 
 
-// ============================================================================
-// Main Loop
-// ============================================================================
 
 void loop() {
   // Handle USB Device MIDI
@@ -512,7 +475,11 @@ void loop() {
   handleEncoder();
   
   // Update display if parameter changed during this loop iteration
-  if (parameterChanged && !inMenu) {
+  if (parameterChanged) {
+    // If we were in menu mode, exit menu to show MIDI parameter
+    if (inMenu) {
+      inMenu = false;
+    }
     String line2 = "";
     
     if (lastChangedParam >= 0) {
