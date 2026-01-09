@@ -25,35 +25,35 @@ int currentEditParam = -1;
 
 
 const EPianoPreset epianoPresets[] = {
-  {"Init",     {0.500f, 0.500f, 0.500f, 0.500f, 0.500f, 0.650f, 0.250f, 0.500f, 16.0f, 0.500f, 0.146f, 0.000f, 0.000f}},
-  {"Dreamy",   {0.500f, 0.500f, 0.500f, 0.500f, 0.750f, 0.650f, 0.250f, 0.500f, 16.0f, 0.500f, 0.246f, 0.000f, 0.000f}},
-  {"Bright",   {0.500f, 0.500f, 1.000f, 0.800f, 0.500f, 0.650f, 0.250f, 0.500f, 16.0f, 0.500f, 0.146f, 0.500f, 0.000f}},
-  {"Mellow",   {0.500f, 0.500f, 0.000f, 0.000f, 0.500f, 0.650f, 0.250f, 0.500f, 16.0f, 0.500f, 0.246f, 0.000f, 0.000f}},
-  {"Autopan",  {0.500f, 0.500f, 0.500f, 0.500f, 0.250f, 0.650f, 0.250f, 0.500f, 16.0f, 0.500f, 0.246f, 0.000f, 0.000f}},
-  {"Tremolo",  {0.500f, 0.500f, 0.500f, 0.500f, 0.750f, 0.650f, 0.250f, 0.500f, 16.0f, 0.500f, 0.246f, 0.000f, 0.000f}},
-  {"S.Chill",  {0.602f, 0.867f, 0.305f, 0.320f, 0.484f, 0.603f, 0.797f, 0.508f, 1.000f, 0.500f, 0.023f, 0.000f, 0.000f}},
-  {"Felt",     {0.133f, 0.703f, 0.195f, 0.086f, 0.508f, 0.447f, 0.797f, 0.508f, 1.000f, 0.500f, 0.086f, 0.000f, 0.000f}},
-  {"Bell",     {0.148f, 0.500f, 0.242f, 1.000f, 0.461f, 0.572f, 0.250f, 0.500f, 16.0f, 0.500f, 0.146f, 0.000f, 0.000f}},
-  {"Organ",    {0.148f, 0.500f, 0.242f, 1.000f, 0.461f, 0.572f, 0.250f, 0.500f, 16.0f, 0.500f, 0.146f, 0.200f, 0.000f}}
+  {"Init",     {0.500f, 0.500f, 0.500f, 0.500f, 0.500f, 0.650f, 0.250f, 0.500f, 16.0f, 0.500f, 0.146f, 0.000f, 1.000f, 0.000f}},
+  {"Dreamy",   {0.500f, 0.500f, 0.500f, 0.500f, 0.750f, 0.650f, 0.250f, 0.500f, 16.0f, 0.500f, 0.246f, 0.000f, 1.000f, 0.000f}},
+  {"Bright",   {0.500f, 0.500f, 1.000f, 0.800f, 0.500f, 0.650f, 0.250f, 0.500f, 16.0f, 0.500f, 0.146f, 0.500f, 1.000f, 0.000f}},
+  {"Mellow",   {0.500f, 0.500f, 0.000f, 0.000f, 0.500f, 0.650f, 0.250f, 0.500f, 16.0f, 0.500f, 0.246f, 0.000f, 1.000f, 0.000f}},
+  {"Autopan",  {0.500f, 0.500f, 0.500f, 0.500f, 0.250f, 0.650f, 0.250f, 0.500f, 16.0f, 0.500f, 0.246f, 0.000f, 1.000f, 0.000f}},
+  {"Tremolo",  {0.500f, 0.500f, 0.500f, 0.500f, 0.750f, 0.650f, 0.250f, 0.500f, 16.0f, 0.500f, 0.246f, 0.000f, 1.000f, 0.000f}},
+  {"Chill",  {0.602f, 0.867f, 0.305f, 0.320f, 0.484f, 0.603f, 0.797f, 0.508f, 1.000f, 0.500f, 0.023f, 0.10f, 1.000f, 0.000f}},
+  {"Felt",     {0.133f, 0.703f, 0.195f, 0.086f, 0.508f, 0.447f, 0.797f, 0.508f, 1.000f, 0.500f, 0.086f, 0.000f, 1.000f, 0.000f}},
+  {"Bell",     {0.148f, 0.500f, 0.242f, 1.000f, 0.461f, 0.572f, 0.250f, 0.500f, 16.0f, 0.500f, 0.146f, 0.000f, 1.000f, 0.000f}},
+  {"Overdrive",    {0.500, 0.500, 0.242, 0.750, 0.445, 0.556, 0.242, 0.500, 16.000, 0.500, 0.146, 0.701, 1.000f, 0.000}}
 };
 
 
 const char* parentMenuItems[] = {"Parameters", "Presets", "Settings", "< Exit"};
-const char* presetMenuItems[] = {"Init", "Dreamy", "Bright", "Mellow", "Autopan", "Tremolo", "Super Chill", "Felt", "Bell", "Organ", "< Back"};
+const char* presetMenuItems[] = {"Init", "Dreamy", "Bright", "Mellow", "Autopan", "Tremolo", "Chill", "Felt", "Bell", "Overdrive", "< Back"};
 const char* settingsMenuItems[] = {"MIDI Channel", "< Back"};
 
 // All EPiano parameters for unified parameter menu
 const char* parameterMenuItems[] = {
   "Decay", "Release", "Hardness", "Treble", "Pan/Tremolo", 
   "LFO Rate", "Velocity", "Stereo", "Polyphony", "Master Tune", 
-  "Detune", "Overdrive", "< Back"
+  "Detune", "Overdrive", "Volume", "< Back"
 };
 
 // Parameter names for display
 const char* controlNames[] = {
   "Decay", "Release", "Hardness", "Treble", "Pan/Tremolo", 
   "LFO Rate", "Velocity", "Stereo", "Polyphony", "Master Tune", 
-  "Detune", "Overdrive", "MIDI Channel"
+  "Detune", "Overdrive", "Volume", "MIDI Channel"
 };
 
 
@@ -109,7 +109,7 @@ void updateDisplay() {
         line2 = settingsMenuItems[menuIndex];
         break;
       case PARAM_EDIT:
-        if (currentEditParam >= 0 && currentEditParam < 13) {
+        if (currentEditParam >= 0 && currentEditParam < 14) {
           line1 = controlNames[currentEditParam];
           float val = allParameterValues[currentEditParam];
           
@@ -120,7 +120,7 @@ void updateDisplay() {
           } else if (currentEditParam == 10) { // Detune  
             float detune = val * 20; // 0 to 20 cents
             line2 = String(detune, 1) + "c";
-          } else if (currentEditParam == 12) { // MIDI Channel
+          } else if (currentEditParam == 13) { // MIDI Channel
             extern int midiChannel;
             line2 = (midiChannel == 0) ? "Omni" : String(midiChannel);
           } else {
@@ -177,7 +177,7 @@ void selectMenuItem() {
       break;
       
     case PARAMETERS:
-      if (menuIndex < 12) { // Parameter edit (0-11)
+      if (menuIndex < 13) { // Parameter edit (0-12)
         currentEditParam = menuIndex;
         currentMenuState = PARAM_EDIT;
       } else { // Back
@@ -227,7 +227,7 @@ void incrementMenuIndex() {
       break;
     case PARAMETERS:
       menuIndex++;
-      if (menuIndex > 12) menuIndex = 0; // 13 items: 12 parameters + Back
+      if (menuIndex > 13) menuIndex = 0; // 14 items: 13 parameters + Back
       break;
     case PRESETS:
       menuIndex++;
@@ -254,7 +254,7 @@ void decrementMenuIndex() {
       break;
     case PARAMETERS:
       menuIndex--;
-      if (menuIndex < 0) menuIndex = 12; // 13 items: 12 parameters + Back
+      if (menuIndex < 0) menuIndex = 13; // 14 items: 13 parameters + Back
       break;
     case PRESETS:
       menuIndex--;
@@ -276,7 +276,7 @@ void decrementMenuIndex() {
 
 void loadPreset(int presetIndex) {
   if (presetIndex >= 0 && presetIndex < getNumPresets()) {
-    for (int i = 0; i < 12; i++) {
+    for (int i = 0; i < NUM_PARAMETERS; i++) {
       allParameterValues[i] = epianoPresets[presetIndex].parameters[i];
       updateParameterFromMenu(i, allParameterValues[i]);
     }
@@ -312,7 +312,7 @@ void updateEncoderParameter(int paramIndex, int change) {
     } else if (paramIndex == 10) { // Detune  
       float detune = allParameterValues[paramIndex] * 20; // 0 to 20 cents
       line2 = String(detune, 1) + "c";
-    } else if (paramIndex == 12) { // MIDI Channel
+    } else if (paramIndex == 13) { // MIDI Channel
       extern int midiChannel;
       line2 = (midiChannel == 0) ? "Omni" : String(midiChannel);
     } else {
@@ -379,12 +379,14 @@ void printCurrentPresetValues() {
   Serial.print("Treble: "); Serial.print(allParameterValues[3], 3);
   Serial.print(" | Pan/Tremolo: "); Serial.print(allParameterValues[4], 3);
   Serial.print(" | LFO Rate: "); Serial.println(allParameterValues[5], 3);
+  Serial.print("Volume: "); Serial.print(allParameterValues[12], 3);
+  Serial.print(" | MIDI Ch: "); Serial.println(allParameterValues[13], 3);
   
-  Serial.println("\nEncoder Raw Values:");
-  for (int i = 1; i <= 11; i++) {
-    Serial.print("Enc"); Serial.print(i); Serial.print(": ");
-    Serial.print(allParameterValues[i-1], 3); Serial.print(" | ");
-    if (i % 3 == 0) Serial.println(); // New line every 3 encoders
+  Serial.println("\nAll Parameters:");
+  for (int i = 0; i < NUM_PARAMETERS; i++) {
+    Serial.print(controlNames[i]); Serial.print(": ");
+    Serial.print(allParameterValues[i], 3); Serial.print(" | ");
+    if ((i + 1) % 3 == 0) Serial.println(); // New line every 3 parameters
   }
   Serial.println();
   Serial.println("=== DEBUG END ===\n");

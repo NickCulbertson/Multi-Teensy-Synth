@@ -17,7 +17,7 @@ const float AudioEffectCustomChorus::LFO_RATES[4] = {
   0.0f,  // off
   0.5f,  // I  (triangle)
   0.8f,  // II (triangle)
-  1.0f   // I+II (sine-ish)
+  0.65f  // I+II (approximation with beating-like modulation)
 };
 
 // Delay range (seconds) — close to your original
@@ -61,10 +61,20 @@ float AudioEffectCustomChorus::lfoValue01(float phase01) const
   }
 
   if (_mode == 3) {
-    // sine-ish LFO: 0..1
+    // Complex waveform to approximate I+II beating effect
+    // Mix triangle with subtle secondary modulation
+    float tri;
+    if (p < 0.5f) tri = p * 2.0f;
+    else tri = 2.0f - (p * 2.0f);
+    
+    // Add secondary beating component (simulates interaction of 0.5Hz + 0.8Hz)
     const float kTwoPi = 6.2831853071795864769f;
-    float s = arm_sin_f32(kTwoPi * p);
-    return 0.5f + 0.5f * s;
+    float secondary = arm_sin_f32(kTwoPi * p * 2.6f) * 0.15f; // ~2.6x for beating effect
+    
+    float result = tri + secondary;
+    if (result < 0.0f) result = 0.0f;
+    if (result > 1.0f) result = 1.0f;
+    return result;
   } else {
     // triangle LFO: 0..1
     if (p < 0.5f) return p * 2.0f;
@@ -130,20 +140,18 @@ void AudioEffectCustomChorus::update(void)
   const float max_delay_samp = DELAY_MAX[_mode] * AUDIO_SAMPLE_RATE_EXACT;
 
   // Depths:
-  // Mode 1 subtle, Mode 2 richer, Mode 3 subtle but still stereo (sine + low depth)
+  // Mode 1 subtle, Mode 2 richer, Mode 3 enhanced depth for combined effect
   float depth = 1.0f;
   if (_mode == 1) depth = 0.65f;
   else if (_mode == 2) depth = 0.90f;
-  else if (_mode == 3) depth = 0.25f;   // slightly higher than 0.18 so it reads on meters
+  else if (_mode == 3) depth = 0.78f;  // Higher depth for combined effect  
 
   const float center = 0.5f * (min_delay_samp + max_delay_samp);
   const float half_range = 0.5f * (max_delay_samp - min_delay_samp) * depth;
 
   int16_t *bp = block->data;
 
-  // Optional “guarantee width” static offset in samples (VERY small).
-  // This helps when dry dominates or when the patch is very correlated.
-  // Try 0, 4, 6, 8. Keep <= 12.
+
   const float kStereoOffsetSamples = (_is_right_channel ? 6.0f : 0.0f);
 
   for (uint16_t i = 0; i < AUDIO_BLOCK_SAMPLES; i++) {

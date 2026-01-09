@@ -38,7 +38,7 @@ extern int midiChannel;
 extern int currentPreset;
 extern bool parameterChanged;
 
-const char* parentMenuItems[] = {"Presets", "Braids", "Settings", "< Exit"};
+const char* parentMenuItems[] = {"Presets", "Parameters", "Settings", "< Exit"};
 const char* braidsMenuItems[] = {"Shape", "Timbre", "Color", "Coarse", "Volume", "Envelopes", "Filter", "LFO", "< Back"};
 const char* envelopeMenuItems[] = {"Amp Attack", "Amp Decay", "Amp Sustain", "Amp Release", "Filt Attack", "Filt Decay", "Filt Sustain", "Filt Release", "< Back"};
 const char* filterMenuItems[] = {"Filter Cutoff", "Filter Res", "Filter Strength", "< Back"};
@@ -55,7 +55,7 @@ extern const int encoderMapping[19];
 const BraidsPreset braidsPresets[NUM_PRESETS] = {
   {"Supersaw", {9.0, 69.0, 61.0, 0.0, 0.0, 100.0, 50.0, 39.0, 75.1, 3.0, 127.0, 0.0, 36.0, 0.0, 36.0, 127.0, 3.0, 2.0, 2.0, 3.0, 0.0, 1.0}},   
   {"Chiptune", {10.0, 68.0, 62.0, 0.0, 0.0, 6.0, 70.0, 33.0, 72.1, 0.0, 127.0, 0.0, 36.0, 0.0, 36.0, 127.0, 3.0, 0.0, 0.0, 0.0, 0.0, 1.0}},
-  {"CSaw", {0.0, 58.0, 54.0, 0.0, 0.0, 100.0, 50.0, 40.0, 80.1, 4.0, 127.0, 0.0, 8.0, 0.0, 50.0, 127.0, 5.0, 0.0, 0.0, 0.0, 0.0, 0.0}},  
+  {"CSaw", {0.0, 58.0, 54.0, 0.0, 0.0, 100.0, 49.0, 10.0, 81.1, 4.0, 127.0, 0.0, 4.0, 25.0, 4.0, 127.0, 5.0, 0.0, 0.0, 0.0, 0.0, 0.0}},  
   {"Fold Bells", {3.0, 67.0, 21.0, 0.0, 0.0, 51.0, 39.0, 51.0, 69.1, 3.0, 127.0, 0.0, 51.0, 0.0, 51.0, 127.0, 25.0, 1.0, 0.0, 7.0, 13.0, 9.0}},  
   {"PWM Drift", {5.0, 52.0, 68.0, 0.0, 0.0, 100.0, 50.0, 40.0, 80.1, 4.0, 127.0, 2.0, 36.0, 0.0, 60.0, 127.0, 3.0, 44.0, 0.0, 6.0, 0.0, 0.0}},       
   {"Sine Pad", {12.0, 68.0, 62.0, 0.0, 18.0, 41.0, 71.0, 60.0, 84.1, 8.0, 127.0, 5.0, 37.0, 96.0, 60.0, 127.0, 2.0, 5.0, 8.0, 6.0, 19.0, 1.0}}, 
@@ -112,7 +112,7 @@ void updateDisplay() {
           line2 = parentMenuItems[menuIndex];
           break;
         case BRAIDS_MENU:
-          line1 = "Braids";
+          line1 = "Parameters";
           line2 = braidsMenuItems[menuIndex];
           break;
         case ENVELOPES:
@@ -148,13 +148,13 @@ void updateDisplay() {
               } else if (paramIndex == 3) { // Coarse transpose
                 int transpose = (int)val;
                 line2 = String(transpose) + "st";
-              } else if (paramIndex == 8) { // Filter Cutoff - show 0-127 range like Mini-Teensy
+              } else if (paramIndex == 8) { // Filter Cutoff - show 0-127 range 
                 int displayValue = (int)val;
                 line2 = String(displayValue);
-              } else if (paramIndex == 16) { // LFO Rate - show Hz like Mini-Teensy
+              } else if (paramIndex == 16) { // LFO Rate - show Hz 
                 float rate = 0.1 + (val / 127.0) * 19.9;
                 line2 = String(rate, 1) + " Hz";
-              } else if (paramIndex >= 17 && paramIndex <= 21) { // LFO Depth parameters - show percentage like Juno
+              } else if (paramIndex >= 17 && paramIndex <= 21) { // LFO Depth parameters
                 int percent = (int)(val / 127.0 * 100);
                 line2 = String(percent) + "%";
               } else {
@@ -171,7 +171,7 @@ void updateDisplay() {
   } else {
     // Only show default message if no parameter was recently changed via MIDI
     if (!parameterChanged) {
-      line1 = "Braids Synth";
+      line1 = "MacroOSC Synth";
       line2 = "Press for menu";
       displayText(line1, line2);
     }

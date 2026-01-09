@@ -5,13 +5,14 @@
 
 echo "🚀 Deploying master config to all Multi-Teensy-Synth projects..."
 
-# Base directory - automatically detect script location
-BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Base directory - script is in Shared folder, projects are in parent directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BASE_DIR="$(dirname "$SCRIPT_DIR")"
 
-# Check if config_master.h exists
-if [ ! -f "$BASE_DIR/config_master.h" ]; then
-    echo "❌ Error: config_master.h not found in $BASE_DIR"
-    echo "Make sure you're running this script from the Multi-Teensy-Synth root directory."
+# Check if config_master.h exists in Shared folder
+if [ ! -f "$SCRIPT_DIR/config_master.h" ]; then
+    echo "❌ Error: config_master.h not found in $SCRIPT_DIR"
+    echo "Make sure config_master.h exists in the Shared folder."
     exit 1
 fi
 
@@ -26,8 +27,8 @@ deploy_to_project() {
     if [ -d "$BASE_DIR/$project_dir" ]; then
         echo "📁 Deploying to $project_name..."
         
-        # Copy master config
-        cp "$BASE_DIR/config_master.h" "$BASE_DIR/$project_dir/config.h"
+        # Copy master config from Shared folder
+        cp "$SCRIPT_DIR/config_master.h" "$BASE_DIR/$project_dir/config.h"
         
         # Uncomment the appropriate PROJECT_TYPE define
         sed -i.bak "s|// #define $project_define|#define $project_define|g" "$BASE_DIR/$project_dir/config.h"

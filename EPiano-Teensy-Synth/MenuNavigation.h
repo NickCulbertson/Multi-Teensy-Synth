@@ -6,7 +6,7 @@
 
 // Define NUM_PARAMETERS if not already defined
 #ifndef NUM_PARAMETERS
-#define NUM_PARAMETERS 13
+#define NUM_PARAMETERS 14
 #endif
 
 // ============================================================================
@@ -27,7 +27,7 @@ enum MenuState {
 
 struct EPianoPreset {
   char name[20];
-  float parameters[13]; // 12 EPiano parameters (0-11)
+  float parameters[14]; // 12 EPiano parameters (0-11) + Volume (12) + MIDI Channel (13)
 };
 
 // ============================================================================

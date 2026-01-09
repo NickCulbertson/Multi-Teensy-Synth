@@ -2,11 +2,27 @@
 
 This unified configuration system allows you to maintain consistent settings across all synthesizer projects while providing project-specific customization.
 
+## Files
+
+### `config_master.h`
+The master configuration template that defines:
+- Hardware pin assignments for encoders and displays
+- MIDI CC mappings for each synth project
+- Project-specific parameter configurations
+- Audio and display options
+
+### `deploy_config.sh`
+Automated deployment script that:
+- Copies `config_master.h` to each project as `config.h`
+- Automatically enables the correct `PROJECT_TYPE` define for each synth
+- Ensures all projects stay synchronized with the master configuration
+
 ## 🚀 Quick Start
 
 ### 1. Deploy Configurations
 Run the deployment script to copy the master config to all projects:
 ```bash
+cd Shared
 ./deploy_config.sh
 ```
 
@@ -74,9 +90,10 @@ Each project has its own CC range to avoid conflicts:
 
 ```
 Multi-Teensy-Synth/
-├── config_master.h              # Master configuration (edit this)
-├── deploy_config.sh             # Deployment script  
-├── CONFIG_SYSTEM_README.md      # This file
+├── Shared/
+│   ├── config_master.h          # Master configuration (edit this)
+│   ├── deploy_config.sh         # Deployment script  
+│   └── README.md                # This file
 ├── EPiano-Teensy-Synth/
 │   └── config.h                 # Auto-generated (PROJECT_EPIANO)
 ├── DCO-Teensy-Synth/
@@ -85,7 +102,7 @@ Multi-Teensy-Synth/
 │   └── config.h                 # Auto-generated (PROJECT_FM)
 ├── Mini-Teensy-Synth/
 │   └── config.h                 # Auto-generated (PROJECT_MINI)
-└── MacroOscillator-Teensy-Synth/
+└── MacroOSC-Teensy-Synth/
     └── config.h                 # Auto-generated (PROJECT_MACRO)
 ```
 
@@ -99,6 +116,16 @@ Multi-Teensy-Synth/
 ### To update just one project:
 1. Edit the specific project's `config.h` directly
 2. **OR** edit `config_master.h` and redeploy
+
+### Manual Configuration
+If you prefer to configure projects individually:
+1. Copy `config_master.h` to your target project folder as `config.h`
+2. Uncomment the appropriate `PROJECT_TYPE` define:
+   - `#define PROJECT_EPIANO` for EPiano-Teensy-Synth
+   - `#define PROJECT_DCO` for DCO-Teensy-Synth  
+   - `#define PROJECT_FM` for FM-Teensy-Synth
+   - `#define PROJECT_MINI` for Mini-Teensy-Synth
+   - `#define PROJECT_MACRO` for MacroOSC-Teensy-Synth
 
 ### Adding a new parameter:
 1. Add the CC define in the appropriate project section of `config_master.h`:
@@ -210,3 +237,9 @@ Update your MIDI controller mappings:
 **Solution:** Ensure only one `PROJECT_*` define is uncommented in config.h
 
 **Need help?** Check the individual project config.h files to see the auto-generated parameter mappings.
+
+## Hardware Compatibility
+
+**Teensy 4.1 Required** - The current pin layout uses pins 34-41 and 50 which are not available on Teensy 4.0.
+
+For Teensy 4.0 compatibility, encoder pins would need to be remapped to available pins (0-33).

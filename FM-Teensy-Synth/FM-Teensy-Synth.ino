@@ -249,9 +249,14 @@ void handleControlChange(int cc, int value) {
 }
 
 void handleProgramChange(int program) {
-  // Map program change 0-127 to FM bank/patches
-  int bankIndex = (program / 32) % 8;    // 8 banks available (0-7)
-  int patchIndex = program % 32;         // 32 patches per bank (0-31)
+  // Only accept valid program change values (0-255 for 8 banks * 32 patches)
+  if (program < 0 || program > 255) return; // Ignore out-of-range program changes
+  
+  int bankIndex = program / 32;    // 8 banks available (0-7)
+  int patchIndex = program % 32;   // 32 patches per bank (0-31)
+  
+  // Ensure we don't exceed available banks
+  if (bankIndex >= 8) return; // Only banks 0-7 available
   
   // Set the bank and load the patch
   currentBank = bankIndex;
@@ -377,7 +382,6 @@ void setup() {
   Serial.println(" Ready!");
 }
 
-// Read all 19 Mini-Teensy encoders
 void readDirectEncoders() {
   encoderValues[0] = enc1.read() / 4;   // enc1
   encoderValues[1] = enc2.read() / 4;   // enc2

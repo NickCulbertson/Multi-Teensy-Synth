@@ -11,7 +11,6 @@
 #include "config.h"
 #include "MenuNavigation.h"
 
-// Project strings
 const char* PROJECT_NAME = "MacroOSC Synth";
 const char* PROJECT_SUBTITLE = "Macro Oscillator";
 
@@ -20,7 +19,6 @@ const char* PROJECT_SUBTITLE = "Macro Oscillator";
 #include <Wire.h>
 #include <Encoder.h>
 
-// Braids MacroOSC Engine
 #include "src/synth_braids.h"
 
 #ifdef USE_LCD_DISPLAY
@@ -49,7 +47,6 @@ MIDIDevice midi1(myusb);
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);
 #endif
 
-// All 19 Mini-Teensy Encoders (using configurable pin definitions from config.h)
 Encoder enc1(ENC_1_CLK, ENC_1_DT);
 Encoder enc2(ENC_2_CLK, ENC_2_DT);
 Encoder enc3(ENC_3_CLK, ENC_3_DT);
@@ -71,8 +68,6 @@ Encoder enc19(ENC_19_CLK, ENC_19_DT);
 Encoder enc20(ENC_20_CLK, ENC_20_DT);
 Encoder menuEncoder(MENU_ENCODER_DT, MENU_ENCODER_CLK);
 
-// Configurable encoder to parameter mapping (defined in config.h)
-// Array indices: 0=enc1, 1=enc2, ..., 10=enc11, 11=enc13, 12=enc14, ..., 18=enc20
 const int encoderMapping[19] = {
   ENC_1_PARAM, ENC_2_PARAM, ENC_3_PARAM, ENC_4_PARAM, ENC_5_PARAM,      // 0-4: enc1-enc5
   ENC_6_PARAM, ENC_7_PARAM, ENC_8_PARAM, ENC_9_PARAM, ENC_10_PARAM,     // 5-9: enc6-enc10
@@ -226,7 +221,6 @@ struct Voice {
 Voice voices[VOICES];
 int currentVoice = 0; // Round-robin voice allocation counter
 
-// Filter envelope parameters (matching Mini-Teensy)
 float filtAttack = 100, filtSustain = 0.5, filtDecay = 2500, filtRelease = 2500; // Filter envelope timing
 float filterStrength = 0.5; // DC amplitude for filter envelope
 
@@ -239,19 +233,16 @@ float filterStrength = 0.5; // DC amplitude for filter envelope
   U8G2_SH1106_128X64_NONAME_F_HW_I2C display(U8G2_R0, U8X8_PIN_NONE);
 #endif
 
-// MIDI variables
 float pitchWheelValue = 0.0;
 float modWheelValue = 0.0;
 int midiChannel = 0; // 0 = omni, 1-16 = specific channel
 
-// Display update tracking for MIDI CC changes
 int lastChangedParam = -1;
 float lastChangedValue = 0.0;
 String lastChangedName = "";
 bool parameterChanged = false;
 
-
-// LFO variables (Juno-style with separate depth controls)
+// LFO variables 
 AudioSynthWaveformSine   lfo;             // LFO for modulation
 float lfoRate = 5.0; // LFO rate in Hz (0.1 - 20Hz)
 float lfoTimbreDepth = 0.0; // LFO>Timbre depth (0-1)
@@ -260,9 +251,6 @@ float lfoPitchDepth = 0.0;  // LFO>Pitch depth (0-1)
 float lfoFilterDepth = 0.0; // LFO>Filter depth (0-1)
 float lfoVolumeDepth = 0.0; // LFO>Volume depth (0-1)
 
-// ============================================================================
-// Centralized MIDI Handler
-// ============================================================================
 
 void processMidiMessage(byte type, byte channel, byte data1, byte data2) {
   // Filter by MIDI channel (0 = omni, 1-16 = specific channel)
@@ -293,16 +281,7 @@ void processMidiMessage(byte type, byte channel, byte data1, byte data2) {
       {
         int pitchBendValue = (data2 << 7) | data1; // Combine MSB and LSB
         pitchWheelValue = (pitchBendValue - 8192) / 8192.0;
-        // Apply pitch bend to all active voices
-        for (int v = 0; v < VOICES; v++) {
-          if (voices[v].active) {
-            int transposedNote = voices[v].note + (int)braidsParameters[3];
-            float pitchBend = pitchWheelValue * 2.0; // ±2 semitones
-            transposedNote += (int)pitchBend;
-            int pitch = transposedNote << 7;
-            braidsOsc[v].set_braids_pitch(pitch);
-          }
-        }
+        updatePitch(); // Use centralized pitch update function
       }
       break;
   }
@@ -315,9 +294,8 @@ void handleControlChange(int cc, int value) {
   // Handle standard MIDI CCs first
   if (cc == CC_MODWHEEL) {
     modWheelValue = value / 127.0;
-    // Apply mod wheel to timbre parameter
-    float modAmount = modWheelValue * 32.0f;
-    updateBraidsParameter(1, constrain(braidsParameters[1] + modAmount, 0.0f, 127.0f));
+    // Mod wheel controls LFO depth for pitch modulation (vibrato)
+    lfoPitchDepth = modWheelValue;  // 0.0 to 1.0 range
     
     // Track mod wheel change for display
     lastChangedParam = -1;  // Special flag for non-parameter controls
@@ -356,6 +334,11 @@ void handleControlChange(int cc, int value) {
   
   // Update parameter if mapped
   if (paramIndex >= 0) {
+    // Special scaling for Shape parameter (0-42 range)
+    if (paramIndex == 0) { // Shape parameter
+      paramValue = map(value, 0, 127, 0, 42); // Scale MIDI 0-127 to Shape 0-42
+    }
+    
     updateBraidsParameter(paramIndex, paramValue);
     
     // Track parameter change for display
@@ -367,16 +350,15 @@ void handleControlChange(int cc, int value) {
 }
 
 void handleProgramChange(int program) {
-  // Map program change 0-127 to Braids presets 0-11
-  int presetIndex = program % NUM_PRESETS;
-  loadPreset(presetIndex);
-  Serial.print("Program change to preset: ");
-  Serial.println(presetIndex);
-  
-  // Update display to show preset name
-  if (!inMenu) {
-    String line1 = "Preset " + String(presetIndex + 1);
-    String line2 = String(getPresetName(presetIndex));
+  // Only accept valid program change values within preset range
+  if (program >= 0 && program < NUM_PRESETS) {
+    loadPreset(program);
+    Serial.print("Program change to preset: ");
+    Serial.println(program);
+    
+    // Update display to show preset name
+    String line1 = "Preset " + String(program + 1);
+    String line2 = String(getPresetName(program));
     displayText(line1, line2);
   }
 }
@@ -420,24 +402,14 @@ void OnNoteOff(byte channel, byte note, byte velocity) {
 void OnControlChange(byte channel, byte number, byte value) {
   if (number == 1) { // Mod wheel
     modWheelValue = value / 127.0;
-    // Apply mod wheel to timbre parameter
-    float modAmount = modWheelValue * 32.0f; // Mod depth for 0-127 range
-    updateBraidsParameter(1, constrain(braidsParameters[1] + modAmount, 0.0f, 127.0f));
+    // Mod wheel controls LFO depth for pitch modulation (vibrato)
+    lfoPitchDepth = modWheelValue;  // 0.0 to 1.0 range
   }
 }
 
 void OnPitchBend(byte channel, int bend) {
   pitchWheelValue = (bend - 8192) / 8192.0;
-  // Apply pitch bend to all active voices
-  for (int v = 0; v < VOICES; v++) {
-    if (voices[v].active) {
-      int transposedNote = voices[v].note + (int)braidsParameters[3]; // Apply coarse transpose
-      float pitchBend = pitchWheelValue * 2.0; // ±2 semitones
-      transposedNote += (int)pitchBend;
-      int pitch = transposedNote << 7; // Simple left shift by 7 bits
-      braidsOsc[v].set_braids_pitch(pitch);
-    }
-  }
+  updatePitch(); // Use centralized pitch update function
 }
 #endif
 
@@ -446,32 +418,39 @@ void OnPitchBend(byte channel, int bend) {
 void OnUSBHostNoteOn(byte channel, byte note, byte velocity) {
   noteOn(note, velocity);
 }
+
 void OnUSBHostNoteOff(byte channel, byte note, byte velocity) {
   noteOff(note);
 }
+
 void OnUSBHostControlChange(byte channel, byte number, byte value) {
   if (number == 1) { // Mod wheel
     modWheelValue = value / 127.0;
-    // Apply mod wheel to timbre parameter
-    float modAmount = modWheelValue * 32.0f; // Mod depth for 0-127 range
-    updateBraidsParameter(1, constrain(braidsParameters[1] + modAmount, 0.0f, 127.0f));
+    // Mod wheel controls LFO depth for pitch modulation (vibrato)
+    lfoPitchDepth = modWheelValue;  // 0.0 to 1.0 range
   }
 }
+
 void OnUSBHostPitchBend(byte channel, int bend) {
   // USB Host MIDI uses signed range -8192 to +8191, center = 0
   pitchWheelValue = bend / 8192.0;
-  // Apply pitch bend to all active voices
+  updatePitch(); // Use centralized pitch update function
+}
+#endif
+
+// Centralized pitch update function for smooth pitch wheel behavior
+void updatePitch() {
+  // Braids pitch format: 1 semitone = 128 units, so ±2 semitones = ±256 units
+  float pitchBendOffset = pitchWheelValue * 256.0f; // ±256 for ±2 semitones
+  
   for (int v = 0; v < VOICES; v++) {
     if (voices[v].active) {
-      int transposedNote = voices[v].note + (int)braidsParameters[3]; // Apply coarse transpose
-      float pitchBend = pitchWheelValue * 2.0; // ±2 semitones
-      transposedNote += (int)pitchBend;
-      int pitch = transposedNote << 7; // Simple left shift by 7 bits
-      braidsOsc[v].set_braids_pitch(pitch);
+      float basePitch = (voices[v].note + (int)braidsParameters[3]) << 7; // Include coarse transpose
+      float modPitch = basePitch + pitchBendOffset;
+      braidsOsc[v].set_braids_pitch((int)modPitch);
     }
   }
 }
-#endif
 
 void setup() {
   Serial.begin(115200);
@@ -496,28 +475,24 @@ void setup() {
     braidsEnvelope[v].sustain(braidsParameters[6] / 127.0);
     braidsEnvelope[v].release(braidsParameters[7]);
     
-    // Initialize filter envelope system (matching Mini-Teensy)
     dcFilter[v].amplitude(filterStrength);
     filtEnv[v].attack(filtAttack);
     filtEnv[v].sustain(filtSustain);
     filtEnv[v].decay(filtDecay);
     filtEnv[v].release(filtRelease);
     
-    // Configure Moog ladder filter (matching Mini-Teensy)
     float val = braidsParameters[8] / 127.0;
-    float cutoff = 20 * pow(1000.0, val); // Logarithmic like Mini-Teensy
+    float cutoff = 20 * pow(1000.0, val); 
     braidsFilter[v].frequency(cutoff);
-    braidsFilter[v].resonance((braidsParameters[9] / 127.0) * 3.0); // 0-3.0 like Mini-Teensy
+    braidsFilter[v].resonance((braidsParameters[9] / 127.0) * 3.0); 
     braidsFilter[v].octaveControl(3.0);
   }
-  
-  // Initialize LFO (matching Mini-Teensy)
+
   lfo.frequency(lfoRate);
   lfo.amplitude(1.0);
-  
   // Set up mixer gains
-  braidsMix1.gain(0, 0.25); braidsMix1.gain(1, 0.25); braidsMix1.gain(2, 0.25); braidsMix1.gain(3, 0.25);
-  braidsMix2.gain(0, 0.25); braidsMix2.gain(1, 0.25); braidsMix2.gain(2, 0.0); braidsMix2.gain(3, 0.0);
+  braidsMix1.gain(0, 0.7); braidsMix1.gain(1, 0.7); braidsMix1.gain(2, 0.7); braidsMix1.gain(3, 0.7);
+  braidsMix2.gain(0, 0.7); braidsMix2.gain(1, 0.7); braidsMix2.gain(2, 0.0); braidsMix2.gain(3, 0.0);
   braidsFinalMix.gain(0, braidsParameters[15] / 127.0);
   braidsFinalMix.gain(1, braidsParameters[15] / 127.0);
 
@@ -563,10 +538,10 @@ void setup() {
     voices[v].velocity = 0;
     voices[v].noteOnTime = 0;
     
-    // Configure DC source for filter envelope (like Mini-Teensy)
+    // Configure DC source for filter envelope
     dcFilter[v].amplitude(filterStrength);
     
-    // Configure filter envelopes (like Mini-Teensy)
+    // Configure filter envelopes
     filtEnv[v].attack(filtAttack);
     filtEnv[v].sustain(filtSustain);
     filtEnv[v].decay(filtDecay);
@@ -578,19 +553,19 @@ void setup() {
     updateBraidsParameter(i, braidsParameters[i]);
   }
   
-  // Set mixer gains for 6 voices
-  braidsMix1.gain(0, 0.25); // Voice 0
-  braidsMix1.gain(1, 0.25); // Voice 1  
-  braidsMix1.gain(2, 0.25); // Voice 2
-  braidsMix1.gain(3, 0.25); // Voice 3
-  braidsMix2.gain(0, 0.25); // Voice 4
-  braidsMix2.gain(1, 0.25); // Voice 5
+  // Set mixer gains for 6 voices - increased for better output level
+  braidsMix1.gain(0, 0.7); // Voice 0
+  braidsMix1.gain(1, 0.7); // Voice 1  
+  braidsMix1.gain(2, 0.7); // Voice 2
+  braidsMix1.gain(3, 0.7); // Voice 3
+  braidsMix2.gain(0, 0.7); // Voice 4
+  braidsMix2.gain(1, 0.7); // Voice 5
   braidsMix2.gain(2, 0.0);  // Unused
   braidsMix2.gain(3, 0.0);  // Unused
   
-  // Final mixer gains - mix both sub-mixers
-  braidsFinalMix.gain(0, 0.5); // braidsMix1 (voices 0-3)
-  braidsFinalMix.gain(1, 0.5); // braidsMix2 (voices 4-5)
+  // Final mixer gains - mix both sub-mixers - increased for better output level
+  braidsFinalMix.gain(0, 0.8); // braidsMix1 (voices 0-3)
+  braidsFinalMix.gain(1, 0.8); // braidsMix2 (voices 4-5)
   braidsFinalMix.gain(2, 0.0); // Unused
   braidsFinalMix.gain(3, 0.0); // Unused
   
@@ -635,7 +610,6 @@ void setup() {
   Serial.println(" Ready!");
 }
 
-// Read all 19 Mini-Teensy encoders
 void readDirectEncoders() {
   encoderValues[0] = enc1.read() / 4;   // enc1
   encoderValues[1] = enc2.read() / 4;   // enc2
@@ -676,7 +650,6 @@ void readAllControls() {
       if (paramIndex >= 0 && paramIndex < NUM_PARAMETERS) {
         updateEncoderParameter(paramIndex, change);
       }
-      
       lastEncoderValues[i] = encoderValues[i];
     }
   }
@@ -716,7 +689,8 @@ void updateBraidsParameter(int paramIndex, float value) {
       case 2: // Color (0-127)
         braidsOsc[v].set_braids_color((int16_t)(value * 258)); // Scale to 16-bit
         break;
-      case 3: // Coarse (transpose) - handled in noteOn
+      case 3: // Coarse (transpose) - update all active voices
+        updatePitch(); // Apply new transpose to all active voices
         break;
       case 4: // Amp Attack (0-127)
         braidsEnvelope[v].attack((value / 127.0) * 4000.0); // 0-4 seconds
@@ -732,16 +706,16 @@ void updateBraidsParameter(int paramIndex, float value) {
         break;
       case 8: // Filter Cutoff (0-127) - moved from index 9
         {
-          // Logarithmic frequency response like analog synth (20Hz to 20kHz) - matching Mini-Teensy
+          // Logarithmic frequency response like analog synth (20Hz to 20kHz)
           float val = value / 127.0; // Convert to 0.0-1.0 range
           float freq = 20 * pow(1000.0, val); // 20Hz to 20kHz logarithmic
-          braidsFilter[v].frequency(freq);  // Moog ladder filter
+          braidsFilter[v].frequency(freq);  // ladder filter
         }
         break;
       case 9: // Filter Resonance (0-127) - moved from index 10
         {
-          float res = (value / 127.0) * 3.0; // 0 to 3.0 resonance like Mini-Teensy
-          braidsFilter[v].resonance(res);  // Moog ladder filter
+          float res = (value / 127.0) * 3.0; // 0 to 3.0 resonance
+          braidsFilter[v].resonance(res);  // ladder filter
         }
         break;
       case 10: // Filter Strength (0-127) - moved from index 11
@@ -751,25 +725,25 @@ void updateBraidsParameter(int paramIndex, float value) {
         }
         break;
       case 11: // Filter Attack (0-127) - moved from index 12
-        filtAttack = 1 + (value / 127.0) * 3000; // 1ms to 3000ms like Mini-Teensy
+        filtAttack = 1 + (value / 127.0) * 3000; // 1ms to 3000ms
         for (int v = 0; v < VOICES; v++) {
           filtEnv[v].attack(filtAttack);
         }
         break;
       case 12: // Filter Decay (0-127) - moved from index 13
-        filtDecay = 10 + (value / 127.0) * 5000; // 10ms to 5000ms like Mini-Teensy
+        filtDecay = 10 + (value / 127.0) * 5000; // 10ms to 5000ms
         for (int v = 0; v < VOICES; v++) {
           filtEnv[v].decay(filtDecay);
         }
         break;
       case 13: // Filter Sustain (0-127) - moved from index 14
-        filtSustain = value / 127.0; // 0.0 to 1.0 range like Mini-Teensy
+        filtSustain = value / 127.0; // 0.0 to 1.0 range
         for (int v = 0; v < VOICES; v++) {
           filtEnv[v].sustain(filtSustain);
         }
         break;
       case 14: // Filter Release (0-127) - moved from index 15
-        filtRelease = 10 + (value / 127.0) * 5000; // 10ms to 5000ms like Mini-Teensy
+        filtRelease = 10 + (value / 127.0) * 5000; // 10ms to 5000ms
         for (int v = 0; v < VOICES; v++) {
           filtEnv[v].release(filtRelease);
         }
@@ -778,34 +752,34 @@ void updateBraidsParameter(int paramIndex, float value) {
         {
           // Apply volume to final mixer output
           float volume = value / 127.0;
-          braidsFinalMix.gain(0, 0.5 * volume); // braidsMix1 (voices 0-3)
-          braidsFinalMix.gain(1, 0.5 * volume); // braidsMix2 (voices 4-5)
+          braidsFinalMix.gain(0, 0.8 * volume); // braidsMix1 (voices 0-3)
+          braidsFinalMix.gain(1, 0.8 * volume); // braidsMix2 (voices 4-5)
         }
         break;
       case 16: // LFO Rate (0.1-20 Hz)
-        lfoRate = 0.1 + (value / 127.0) * 19.9; // 0.1 to 20 Hz like Mini-Teensy
+        lfoRate = 0.1 + (value / 127.0) * 19.9; // 0.1 to 20 Hz
         lfo.frequency(lfoRate);
         break;
       case 17: // LFO>Timbre (0-100%)
-        lfoTimbreDepth = value / 127.0; // 0.0 to 1.0 range like Juno-style
+        lfoTimbreDepth = value / 127.0; // 0.0 to 1.0 range
         break;
       case 18: // LFO>Color (0-100%)
-        lfoColorDepth = value / 127.0; // 0.0 to 1.0 range like Juno-style
+        lfoColorDepth = value / 127.0; // 0.0 to 1.0 range
         break;
       case 19: // LFO>Pitch (0-100%)
-        lfoPitchDepth = value / 127.0; // 0.0 to 1.0 range like Juno-style
+        lfoPitchDepth = value / 127.0; // 0.0 to 1.0 range
         break;
       case 20: // LFO>Filter (0-100%)
-        lfoFilterDepth = value / 127.0; // 0.0 to 1.0 range like Juno-style
+        lfoFilterDepth = value / 127.0; // 0.0 to 1.0 range
         break;
       case 21: // LFO>Volume (0-100%)
-        lfoVolumeDepth = value / 127.0; // 0.0 to 1.0 range like Juno-style
+        lfoVolumeDepth = value / 127.0; // 0.0 to 1.0 range
         break;
     }
   }
 }
 
-// Voice allocation - round-robin like Mini-Teensy-Synth
+// Voice allocation - round-robin
 int findAvailableVoice() {
   // Start from current voice and look for next available
   for (int i = 0; i < VOICES; i++) {
@@ -831,12 +805,11 @@ void noteOn(uint8_t note, uint8_t velocity) {
   voices[voice].noteOnTime = millis();
   
   
-  // Apply coarse transpose and pitch bend
-  int transposedNote = note + (int)braidsParameters[3]; // Apply coarse transpose
-  float pitchBend = pitchWheelValue * 2.0; // ±2 semitones
-  transposedNote += (int)pitchBend;
-  int pitch = transposedNote << 7; // Simple left shift by 7 bits
-  braidsOsc[voice].set_braids_pitch(pitch);
+  // Apply coarse transpose and pitch bend using Braids linear pitch format
+  float pitchBendOffset = pitchWheelValue * 256.0f; // ±256 for ±2 semitones
+  float basePitch = (note + (int)braidsParameters[3]) << 7; // Include coarse transpose
+  float modPitch = basePitch + pitchBendOffset;
+  braidsOsc[voice].set_braids_pitch((int)modPitch);
   
   
   // Trigger envelopes
@@ -858,7 +831,7 @@ void noteOff(uint8_t note) {
   // Find voice with this note and release it
   int voiceNum = findVoiceForNote(note);
   if (voiceNum >= 0) {
-    // Turn off envelopes but let them complete their release naturally (like Mini-Teensy)
+    // Turn off envelopes but let them complete their release naturally
     braidsEnvelope[voiceNum].noteOff();
     filtEnv[voiceNum].noteOff(); // Trigger filter envelope release
     voices[voiceNum].active = false; // Mark as inactive for voice allocation
@@ -894,10 +867,10 @@ void updateEncoderParameter(int paramIndex, int change) {
     } else if (paramIndex == 3) { // Coarse transpose
       int transpose = (int)braidsParameters[paramIndex];
       line2 = String(transpose) + "st";
-    } else if (paramIndex == 8) { // Filter Cutoff - show 0-127 range like Mini-Teensy
+    } else if (paramIndex == 8) { // Filter Cutoff - show 0-127 range
       int displayValue = (int)braidsParameters[paramIndex];
       line2 = String(displayValue);
-    } else if (paramIndex == 9) { // Filter Resonance - show 0-127 range like Mini-Teensy
+    } else if (paramIndex == 9) { // Filter Resonance - show 0-127 range
       int displayValue = (int)braidsParameters[paramIndex];
       line2 = String(displayValue);
     } else {
@@ -909,7 +882,7 @@ void updateEncoderParameter(int paramIndex, int change) {
     displayText(line1, line2);
 }
 
-// LFO modulation update (Juno-style with simultaneous modulation)
+// LFO modulation update 
 void updateLFOModulation() {
   // Throttle LFO updates to reduce CPU load and avoid conflicts with knob updates
   static unsigned long lastLFOUpdate = 0;
@@ -918,8 +891,8 @@ void updateLFOModulation() {
   if (currentTime - lastLFOUpdate < 10) return; // Slower updates to avoid glitches (10ms = 100Hz)
   lastLFOUpdate = currentTime;
   
-  // Apply pitch wheel to all active voices first
-  float pitchWheelMultiplier = pow(2.0, pitchWheelValue * 2.0 / 12.0);
+  // Calculate pitch bend offset using Braids linear format
+  float pitchBendOffset = pitchWheelValue * 256.0f; // ±256 for ±2 semitones
   
   // Calculate LFO signal
   float phase = (currentTime * lfoRate * 2 * PI) / 1000.0;
@@ -967,12 +940,11 @@ void updateLFOModulation() {
   
   // Pitch modulation
   if (lfoPitchDepth > 0.01) {
-        float pitchModulation = lfoSignal * lfoPitchDepth * 0.02; // ±2% for Braids pitch format
-    float pitchLFOMultiplier = 1.0 + pitchModulation;
+        float pitchModulation = lfoSignal * lfoPitchDepth * 128.0; // ±1 semitone max
     for (int v = 0; v < VOICES; v++) {
       if (voices[v].active) {
         float basePitch = (voices[v].note + (int)braidsParameters[3]) << 7; // Include coarse transpose
-        float modPitch = basePitch * pitchLFOMultiplier * pitchWheelMultiplier;
+        float modPitch = basePitch + pitchBendOffset + pitchModulation;
         braidsOsc[v].set_braids_pitch((int)modPitch);
       }
     }
@@ -981,7 +953,7 @@ void updateLFOModulation() {
     for (int v = 0; v < VOICES; v++) {
       if (voices[v].active) {
         float basePitch = (voices[v].note + (int)braidsParameters[3]) << 7; // Include coarse transpose
-        float modPitch = basePitch * pitchWheelMultiplier;
+        float modPitch = basePitch + pitchBendOffset;
         braidsOsc[v].set_braids_pitch((int)modPitch);
       }
     }
@@ -991,7 +963,7 @@ void updateLFOModulation() {
   float val = braidsParameters[8] / 127.0;
   float baseCutoff = 20 * pow(1000.0, val); // Base filter cutoff
   if (lfoFilterDepth > 0.01) {
-        float filterModulation = lfoSignal * lfoFilterDepth * 1000.0; // ±1000 Hz like Juno
+        float filterModulation = lfoSignal * lfoFilterDepth * 1000.0; // ±1000 Hz 
     float modulatedCutoff = constrain(baseCutoff + filterModulation, 20.0, 20000.0);
     for (int v = 0; v < VOICES; v++) {
       braidsFilter[v].frequency(modulatedCutoff);
@@ -1006,15 +978,15 @@ void updateLFOModulation() {
   // Volume modulation
   float baseVolume = braidsParameters[15] / 127.0;
   if (lfoVolumeDepth > 0.01) {
-        float volumeModulation = lfoSignal * lfoVolumeDepth * 0.3; // ±30% amplitude like Juno
+        float volumeModulation = lfoSignal * lfoVolumeDepth * 0.3; // ±30% amplitude
     float ampMultiplier = 1.0 + volumeModulation;
     float modVolume = constrain(baseVolume * ampMultiplier, 0.0, 1.0);
-    braidsFinalMix.gain(0, 0.5 * modVolume); // braidsMix1 (voices 0-3)
-    braidsFinalMix.gain(1, 0.5 * modVolume); // braidsMix2 (voices 4-5)
+    braidsFinalMix.gain(0, 0.8 * modVolume); // braidsMix1 (voices 0-3)
+    braidsFinalMix.gain(1, 0.8 * modVolume); // braidsMix2 (voices 4-5)
   } else {
     // No volume LFO - use base volume
-    braidsFinalMix.gain(0, 0.5 * baseVolume); // braidsMix1 (voices 0-3)
-    braidsFinalMix.gain(1, 0.5 * baseVolume); // braidsMix2 (voices 4-5)
+    braidsFinalMix.gain(0, 0.8 * baseVolume); // braidsMix1 (voices 0-3)
+    braidsFinalMix.gain(1, 0.8 * baseVolume); // braidsMix2 (voices 4-5)
   }
 }
 
@@ -1058,7 +1030,7 @@ void loop() {
   readAllControls();
   handleEncoder();
   
-  // Update LFO modulation (matching Mini-Teensy)
+  // Update LFO modulation
   updateLFOModulation();
   
   // Update display if parameter changed during this loop iteration
@@ -1079,12 +1051,5 @@ void loop() {
     parameterChanged = false;
   }
   
-  // Minimal serial input check for performance
-  if (Serial.available()) {
-    char input = Serial.read();
-    if (input == 'r' || input == 'R') {
-      resetEncoderBaselines();
-    }
-  }
   delay(5);
 }

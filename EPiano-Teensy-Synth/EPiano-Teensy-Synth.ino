@@ -4,7 +4,7 @@
  * featuring the MDA EPiano synthesis engine with real-time parameter control.
  */
 
-#define NUM_PARAMETERS 13
+#define NUM_PARAMETERS 14
 #define VOICES 16
 
 #include "config.h"
@@ -94,7 +94,7 @@ void setup() {
   
 #ifdef USE_TEENSY_DAC
   sgtl5000_1.enable();
-  sgtl5000_1.volume(0.8);
+  sgtl5000_1.volume(0.95); // Increased Teensy node volume
   Serial.println("Teensy Audio Shield initialized");
 #endif
 
@@ -114,11 +114,15 @@ void setup() {
   allParameterValues[9] = 0.5;   // Master Tune
   allParameterValues[10] = 0.146; // Detune
   allParameterValues[11] = 0.0;   // Overdrive
+  allParameterValues[12] = 1.0;   // Volume
+  allParameterValues[13] = 0.0;   // MIDI Channel
   
-  // Apply all parameter values to EPiano engine
-  for (int i = 0; i < NUM_PARAMETERS; i++) {
+  // Apply all parameter values to EPiano engine (skip MIDI channel)
+  for (int i = 0; i < NUM_PARAMETERS - 1; i++) {
     updateParameterFromMenu(i, allParameterValues[i]);
   }
+  // Set MIDI channel separately
+  midiChannel = (int)(allParameterValues[13] * 16);
   
   // Setup encoders
   setupEncoders();
@@ -165,7 +169,7 @@ void setup() {
   initializeMenu();
   
   Serial.println("EPiano-Teensy Synth initialized");
-  Serial.println("Parameters: 12 EPiano parameters");
+  Serial.println("Parameters: 12 EPiano parameters + Volume + MIDI Channel");
   
 #ifdef USE_USB_AUDIO
   Serial.println("Audio output: USB Audio");
@@ -187,6 +191,7 @@ void setup() {
   Serial.print("  Detune: CC"); Serial.println(CC_10_PARAM);
   Serial.print("  Overdrive: CC"); Serial.println(CC_12_PARAM);
   Serial.print("  Volume: CC"); Serial.println(CC_VOLUME);
+  Serial.print("  Mod Wheel: CC"); Serial.println(CC_MODWHEEL);
   Serial.println("Program changes: 0-4 for presets");
   
   // Show startup screen
@@ -214,6 +219,7 @@ void setupEncoders() {
   encoders[10] = new Encoder(ENC_10_CLK, ENC_10_DT); // Master Tune
   encoders[11] = new Encoder(ENC_11_CLK, ENC_11_DT); // Detune
   encoders[13] = new Encoder(ENC_17_CLK, ENC_17_DT); // Overdrive
+  encoders[14] = new Encoder(ENC_14_CLK, ENC_14_DT); // Volume
 
   // Encoders 13-20 are disabled (mapped to -1), so we don't initialize them
 }
@@ -256,7 +262,10 @@ void updateParameterFromMenu(int paramIndex, float val) {
     case 11: // Overdrive
       ep.setOverdrive(val);
       break;
-    case 12: // MIDI Channel
+    case 12: // Volume
+      ep.setVolume(val);
+      break;
+    case 13: // MIDI Channel
       midiChannel = (int)(val * 16); // 0-16 (0=omni, 1-16=channels)
       break;
   }
@@ -303,26 +312,15 @@ void handleControlChange(int cc, int value) {
   // Convert MIDI value (0-127) to parameter value (0.0-1.0)
   float paramValue = value / 127.0;
   
-  // Handle standard MIDI CCs first
+  // Handle mod wheel - let EPiano library handle it internally
   if (cc == CC_MODWHEEL) {
-    // EPiano doesn't have built-in mod wheel support, just store the value for potential future use
-    // Track mod wheel change for display
+    // EPiano library handles mod wheel internally for tremolo/pan effects
+    // Just track for display
     lastChangedParam = -1;  // Special flag for non-parameter controls
     lastChangedName = "Mod Wheel";
     lastChangedValue = value;  // Use raw 0-127 value for display
     parameterChanged = true;
-    return;
-  }
-  
-  if (cc == CC_VOLUME) {
-    ep.setVolume(paramValue);
-    
-    // Track volume change for display
-    lastChangedParam = -1;  // Special flag for non-parameter controls  
-    lastChangedName = "Volume";
-    lastChangedValue = value;  // Use raw 0-127 value for display
-    parameterChanged = true;
-    return;
+    // Don't return - let it fall through to ep.processMidiController()
   }
   
   int paramIndex = -1;
@@ -339,6 +337,8 @@ void handleControlChange(int cc, int value) {
   else if (cc == CC_10_PARAM) paramIndex = 9;  // Master Tune
   else if (cc == CC_11_PARAM) paramIndex = 10; // Detune
   else if (cc == CC_12_PARAM) paramIndex = 11; // Overdrive
+  else if (cc == CC_13_PARAM) paramIndex = 12; // Volume
+  else if (cc == CC_VOLUME) paramIndex = 12;   // Volume
   
   // Update parameter if mapped
   if (paramIndex >= 0) {
@@ -373,7 +373,7 @@ void handleProgramChange(int program) {
 void readAllControls() {
   // Read all hardware encoders
   for (int i = 1; i <= 20; i++) {
-    if (i == 12) continue; // Skip encoder 12 (doesn't exist)
+    if (i == 12) continue; // Skip encoder 12 (conflicts with menu)
     if (encoders[i] != nullptr) {
       long newPosition = encoders[i]->read();
       if (!encoderBaselines[i]) {
@@ -420,12 +420,12 @@ void handleEncoder() {
 #endif
   bool menuButtonPressed = digitalRead(MENU_ENCODER_SW) == LOW;
   
-  // Handle menu encoder rotation - EXACTLY like Mini-Teensy
+  // Handle menu encoder rotation
   if (inMenu && newMenuEncoderValue != lastMenuEncoderPosition) {
     if (newMenuEncoderValue > lastMenuEncoderPosition) {
-      decrementMenuIndex();  // Match Mini-Teensy direction
+      decrementMenuIndex();
     } else {
-      incrementMenuIndex();   // Match Mini-Teensy direction
+      incrementMenuIndex();
     }
     updateDisplay();
     lastMenuEncoderPosition = newMenuEncoderValue;

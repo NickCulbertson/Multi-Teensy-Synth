@@ -2,9 +2,10 @@
 #define CONFIG_H
 
 // ============================================================================
-// Multi-Teensy-Synth Master Configuration File
+// Share Configs
 // ============================================================================
-// Copy this file to each project as config.h and uncomment the appropriate 
+// This is a shared config master file for multiple synths. Just ignore the ones you are not using.
+// Use the export script, or copy this file to each project as config.h and uncomment the appropriate
 // PROJECT_TYPE define below. This ensures consistent configuration across
 // all synthesizers while allowing project-specific customization.
 
@@ -70,6 +71,7 @@
 #define ENC_10_DT    26
 #define ENC_11_CLK   21     // enc11 pins
 #define ENC_11_DT    20
+//Encoder 12 is the menu encoder
 #define ENC_13_CLK   34     // enc13 pins
 #define ENC_13_DT    33
 #define ENC_14_CLK   50     // enc14 pins
@@ -114,8 +116,8 @@
 #define CC_9_PARAM       74
 #define CC_10_PARAM      71
 #define CC_11_PARAM      76
-#define CC_12_PARAM      77
-#define CC_13_PARAM      -1
+#define CC_12_PARAM      93
+#define CC_13_PARAM      77
 #define CC_14_PARAM      93
 #define CC_15_PARAM      18
 #define CC_16_PARAM      19
@@ -136,8 +138,9 @@
 #define ENC_9_PARAM    8   // Polyphony
 #define ENC_10_PARAM   9   // Master Tune
 #define ENC_11_PARAM   10  // Detune
+#define ENC_12_PARAM   -1  // Disabled
 #define ENC_13_PARAM   11  // Overdrive
-#define ENC_14_PARAM   -1  // Disabled
+#define ENC_14_PARAM   12  // Volume
 #define ENC_15_PARAM   -1  // Disabled
 #define ENC_16_PARAM   -1  // Disabled
 #define ENC_17_PARAM   -1  // Disabled
@@ -148,7 +151,7 @@
 #define ENC_22_PARAM   -1  // Disabled
 #define ENC_23_PARAM   -1  // Disabled
 
-//EPiano Parameters (13 total):
+//EPiano Parameters (14 total):
 // 0: Decay (0.0-1.0)
 // 1: Release (0.0-1.0)
 // 2: Hardness (0.0-1.0)
@@ -161,7 +164,8 @@
 // 9: Master Tune (0.0-1.0)
 // 10: Detune (0.0-1.0)
 // 11: Overdrive (0.0-1.0) - Internal gain/drive saturation
-// 12: MIDI Channel (0.0-1.0)
+// 12: Volume (0.0-1.0) - Master output level
+// 13: MIDI Channel (0.0-1.0)
 
 // Menu Encoder Configuration
 #define MENU_ENCODER_PARAM  -1  // Menu-only mode
@@ -174,26 +178,26 @@
 // ============================================================================
 
 // DCO MIDI CC Parameter Mapping
-#define CC_1_PARAM       73
-#define CC_2_PARAM       75
-#define CC_3_PARAM       79
-#define CC_4_PARAM       72
-#define CC_5_PARAM       80
-#define CC_6_PARAM       81
-#define CC_7_PARAM       82
-#define CC_8_PARAM       83
-#define CC_9_PARAM       74
-#define CC_10_PARAM      71
-#define CC_11_PARAM      76
-#define CC_12_PARAM      76
-#define CC_13_PARAM      77
-#define CC_14_PARAM      93
-#define CC_15_PARAM      18
-#define CC_16_PARAM      19
-#define CC_17_PARAM      16
-#define CC_18_PARAM      17
-#define CC_19_PARAM      85
-#define CC_20_PARAM      86
+#define CC_1_PARAM       19  // PWM Width
+#define CC_2_PARAM       16  // Chorus
+#define CC_3_PARAM       -1  // LFO Rate
+#define CC_4_PARAM       -1  // LFO Pitch
+#define CC_5_PARAM       -1  // LFO PWM
+#define CC_6_PARAM       17  // Filter Strength
+#define CC_7_PARAM       72  // Amp Release
+#define CC_8_PARAM       83  // Filter Release
+#define CC_9_PARAM       76  // PWM Volume
+#define CC_10_PARAM      77  // Saw Volume
+#define CC_11_PARAM      93  // Sub Volume
+#define CC_12_PARAM      74  // Cutoff
+#define CC_13_PARAM      71  // Resonance
+#define CC_14_PARAM      80  // Filter Attack
+#define CC_15_PARAM      81  // Filter Decay
+#define CC_16_PARAM      82  // Filter Sustain
+#define CC_17_PARAM      18  // Noise volume
+#define CC_18_PARAM      73  // Amp Attack
+#define CC_19_PARAM      79  // Amp Sustain
+#define CC_20_PARAM      75  // Amp Decay
 #define CC_21_PARAM      -1
 #define CC_22_PARAM      -1
 #define CC_23_PARAM      -1
@@ -265,16 +269,16 @@
 
 // FM MIDI CC Parameter Mapping
 #define CC_1_PARAM       73 // Algorithm
-#define CC_2_PARAM       75 // Feedback
-#define CC_3_PARAM       79 // LFO Speed
-#define CC_4_PARAM       72 // Master Volume
-#define CC_5_PARAM       80 // OP1 Level
-#define CC_6_PARAM       81 // OP2 Level
-#define CC_7_PARAM       82 // OP3 Level
-#define CC_8_PARAM       83 // OP4 Level
-#define CC_9_PARAM       74 // OP5 Level
-#define CC_10_PARAM      71 // OP6 Level
-#define CC_11_PARAM      76
+#define CC_2_PARAM       83 // Feedback
+#define CC_3_PARAM       74 // LFO Speed
+#define CC_4_PARAM       71 // Master Volume
+#define CC_5_PARAM       75 // OP1 Level
+#define CC_6_PARAM       79 // OP2 Level
+#define CC_7_PARAM       72 // OP3 Level
+#define CC_8_PARAM       80 // OP4 Level
+#define CC_9_PARAM       81 // OP5 Level
+#define CC_10_PARAM      82 // OP6 Level
+#define CC_11_PARAM      78
 #define CC_12_PARAM      76
 #define CC_13_PARAM      77
 #define CC_14_PARAM      93

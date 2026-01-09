@@ -6,7 +6,7 @@
  */
 
 #define NUM_PARAMETERS 31
-#define NUM_PRESETS 10
+#define NUM_PRESETS 11
 #define VOICES 6
 
 #include "config.h"
@@ -77,7 +77,7 @@ long lastEncoderValues[20] = {0};
 
 float allParameterValues[NUM_PARAMETERS] = {
   0.508, 0.508, 0.508, 0.149, 0.000, 0.034, 0.000, 0.000, 0.008, 0.000,
-  0.010, 0.149, 0.023, 1.000, 0.000, 0.282, 0.500, 0.040, 0.000,
+  0.000, 0.149, 0.023, 1.000, 0.000, 0.282, 0.500, 0.040, 0.000,
   0.176, 0.433, 0.020, 0.250, 0.000, 0.000, 0.500, 0.000, 0.000, 0.000, 0.000, 0.000
 };
 
@@ -89,7 +89,7 @@ AudioSynthWaveformDc     dcFilter[VOICES]; // DC source for filter envelope per 
 AudioSynthWaveformSine   lfo;             // LFO for modulation
 AudioMixer4              oscMix[VOICES];   // Mix VCO + Sub + noise per voice
 AudioFilterLadder        lpFilter[VOICES]; // Low-pass filter per voice (24dB/oct)
-AudioFilterBiquad        hpFilter[VOICES];
+AudioFilterBiquad        hpFilter[VOICES]; // High-pass filter per voice (12dB/oct)
 AudioEffectEnvelope      ampEnv[VOICES], filtEnv[VOICES]; // Envelopes per voice
 AudioMixer4              voiceMix1, voiceMix2; // Mix voices together
 AudioMixer4              preChorusMix;    // Pre-chorus voice mixer (mono)
@@ -113,67 +113,67 @@ AudioConnection patchCord1_0b(sawOsc[0], 0, oscMix[0], 3);      // Sawtooth osci
 AudioConnection patchCord2_0(subOsc[0], 0, oscMix[0], 1);       // Sub-osc to mixer ch 1
 AudioConnection patchCord3_0(noise1, 0, oscMix[0], 2);          // Noise to mixer ch 2
 AudioConnection patchCord4_0(oscMix[0], 0, ampEnv[0], 0);       // Mixer to amp envelope
-AudioConnection patchCord5_0(ampEnv[0], 0, lpFilter[0], 0);     // Amp env to low-pass filter
-AudioConnection patchCord6_0(dcFilter[0], filtEnv[0]);          // DC to filter envelope
-AudioConnection patchCord7_0(filtEnv[0], 0, lpFilter[0], 1);    // Filter env to LP filter freq
-AudioConnection patchCord8_0(lpFilter[0], 0, hpFilter[0], 0);   // LP filter to HP filter
+AudioConnection patchCord5_0(ampEnv[0], 0, hpFilter[0], 0);     // Amp env to high-pass filter first
+AudioConnection patchCord6_0(hpFilter[0], 0, lpFilter[0], 0);   // HP filter to low-pass filter
+AudioConnection patchCord7_0(dcFilter[0], filtEnv[0]);          // DC to filter envelope
+AudioConnection patchCord8_0(filtEnv[0], 0, lpFilter[0], 1);    // Filter env to LP filter freq
 
 AudioConnection patchCord1_1(pwmOsc[1], 0, oscMix[1], 0);
 AudioConnection patchCord1_1b(sawOsc[1], 0, oscMix[1], 3);
 AudioConnection patchCord2_1(subOsc[1], 0, oscMix[1], 1);
 AudioConnection patchCord3_1(noise1, 0, oscMix[1], 2);
 AudioConnection patchCord4_1(oscMix[1], 0, ampEnv[1], 0);
-AudioConnection patchCord5_1(ampEnv[1], 0, lpFilter[1], 0);
-AudioConnection patchCord6_1(dcFilter[1], filtEnv[1]);
-AudioConnection patchCord7_1(filtEnv[1], 0, lpFilter[1], 1);
-AudioConnection patchCord8_1(lpFilter[1], 0, hpFilter[1], 0);
+AudioConnection patchCord5_1(ampEnv[1], 0, hpFilter[1], 0);
+AudioConnection patchCord6_1(hpFilter[1], 0, lpFilter[1], 0);
+AudioConnection patchCord7_1(dcFilter[1], filtEnv[1]);
+AudioConnection patchCord8_1(filtEnv[1], 0, lpFilter[1], 1);
 
 AudioConnection patchCord1_2(pwmOsc[2], 0, oscMix[2], 0);
 AudioConnection patchCord1_2b(sawOsc[2], 0, oscMix[2], 3);
 AudioConnection patchCord2_2(subOsc[2], 0, oscMix[2], 1);
 AudioConnection patchCord3_2(noise1, 0, oscMix[2], 2);
 AudioConnection patchCord4_2(oscMix[2], 0, ampEnv[2], 0);
-AudioConnection patchCord5_2(ampEnv[2], 0, lpFilter[2], 0);
-AudioConnection patchCord6_2(dcFilter[2], filtEnv[2]);
-AudioConnection patchCord7_2(filtEnv[2], 0, lpFilter[2], 1);
-AudioConnection patchCord8_2(lpFilter[2], 0, hpFilter[2], 0);
+AudioConnection patchCord5_2(ampEnv[2], 0, hpFilter[2], 0);
+AudioConnection patchCord6_2(hpFilter[2], 0, lpFilter[2], 0);
+AudioConnection patchCord7_2(dcFilter[2], filtEnv[2]);
+AudioConnection patchCord8_2(filtEnv[2], 0, lpFilter[2], 1);
 
 AudioConnection patchCord1_3(pwmOsc[3], 0, oscMix[3], 0);
 AudioConnection patchCord1_3b(sawOsc[3], 0, oscMix[3], 3);
 AudioConnection patchCord2_3(subOsc[3], 0, oscMix[3], 1);
 AudioConnection patchCord3_3(noise1, 0, oscMix[3], 2);
 AudioConnection patchCord4_3(oscMix[3], 0, ampEnv[3], 0);
-AudioConnection patchCord5_3(ampEnv[3], 0, lpFilter[3], 0);
-AudioConnection patchCord6_3(dcFilter[3], filtEnv[3]);
-AudioConnection patchCord7_3(filtEnv[3], 0, lpFilter[3], 1);
-AudioConnection patchCord8_3(lpFilter[3], 0, hpFilter[3], 0);
+AudioConnection patchCord5_3(ampEnv[3], 0, hpFilter[3], 0);
+AudioConnection patchCord6_3(hpFilter[3], 0, lpFilter[3], 0);
+AudioConnection patchCord7_3(dcFilter[3], filtEnv[3]);
+AudioConnection patchCord8_3(filtEnv[3], 0, lpFilter[3], 1);
 
 AudioConnection patchCord1_4(pwmOsc[4], 0, oscMix[4], 0);
 AudioConnection patchCord1_4b(sawOsc[4], 0, oscMix[4], 3);
 AudioConnection patchCord2_4(subOsc[4], 0, oscMix[4], 1);
 AudioConnection patchCord3_4(noise1, 0, oscMix[4], 2);
 AudioConnection patchCord4_4(oscMix[4], 0, ampEnv[4], 0);
-AudioConnection patchCord5_4(ampEnv[4], 0, lpFilter[4], 0);
-AudioConnection patchCord6_4(dcFilter[4], filtEnv[4]);
-AudioConnection patchCord7_4(filtEnv[4], 0, lpFilter[4], 1);
-AudioConnection patchCord8_4(lpFilter[4], 0, hpFilter[4], 0);
+AudioConnection patchCord5_4(ampEnv[4], 0, hpFilter[4], 0);
+AudioConnection patchCord6_4(hpFilter[4], 0, lpFilter[4], 0);
+AudioConnection patchCord7_4(dcFilter[4], filtEnv[4]);
+AudioConnection patchCord8_4(filtEnv[4], 0, lpFilter[4], 1);
 
 AudioConnection patchCord1_5(pwmOsc[5], 0, oscMix[5], 0);
 AudioConnection patchCord1_5b(sawOsc[5], 0, oscMix[5], 3);
 AudioConnection patchCord2_5(subOsc[5], 0, oscMix[5], 1);
 AudioConnection patchCord3_5(noise1, 0, oscMix[5], 2);
 AudioConnection patchCord4_5(oscMix[5], 0, ampEnv[5], 0);
-AudioConnection patchCord5_5(ampEnv[5], 0, lpFilter[5], 0);
-AudioConnection patchCord6_5(dcFilter[5], filtEnv[5]);
-AudioConnection patchCord7_5(filtEnv[5], 0, lpFilter[5], 1);
-AudioConnection patchCord8_5(lpFilter[5], 0, hpFilter[5], 0);
+AudioConnection patchCord5_5(ampEnv[5], 0, hpFilter[5], 0);
+AudioConnection patchCord6_5(hpFilter[5], 0, lpFilter[5], 0);
+AudioConnection patchCord7_5(dcFilter[5], filtEnv[5]);
+AudioConnection patchCord8_5(filtEnv[5], 0, lpFilter[5], 1);
 
-AudioConnection patchCordMix1(hpFilter[0], 0, voiceMix1, 0);
-AudioConnection patchCordMix2(hpFilter[1], 0, voiceMix1, 1);
-AudioConnection patchCordMix3(hpFilter[2], 0, voiceMix1, 2);
-AudioConnection patchCordMix4(hpFilter[3], 0, voiceMix2, 0);
-AudioConnection patchCordMix5(hpFilter[4], 0, voiceMix2, 1);
-AudioConnection patchCordMix6(hpFilter[5], 0, voiceMix2, 2);
+AudioConnection patchCordMix1(lpFilter[0], 0, voiceMix1, 0);  // From lpFilter (after hpFilter)
+AudioConnection patchCordMix2(lpFilter[1], 0, voiceMix1, 1);
+AudioConnection patchCordMix3(lpFilter[2], 0, voiceMix1, 2);
+AudioConnection patchCordMix4(lpFilter[3], 0, voiceMix2, 0);
+AudioConnection patchCordMix5(lpFilter[4], 0, voiceMix2, 1);
+AudioConnection patchCordMix6(lpFilter[5], 0, voiceMix2, 2);
 
 // Combine voice mixers into pre-chorus mix (mono bus)
 AudioConnection patchCordPreChorus1(voiceMix1, 0, preChorusMix, 0);
@@ -503,11 +503,9 @@ void handleProgramChange(int program) {
     Serial.println(program);
     
     // Update display to show preset name
-    if (!inMenu) {
-      String line1 = "Preset " + String(program + 1);
-      String line2 = String(getPresetName(program));
-      displayText(line1, line2);
-    }
+    String line1 = "Preset " + String(program + 1);
+    String line2 = String(getPresetName(program));
+    displayText(line1, line2);
   }
 }
 
@@ -600,11 +598,6 @@ void setup() {
     subOsc[v].begin(WAVEFORM_BANDLIMIT_SQUARE);
     subOsc[v].amplitude(0.8);
     
-    oscMix[v].gain(0, pwmVolume * 0.6);     // PWM volume
-    oscMix[v].gain(1, subVolume * 0.6);     // Sub oscillator volume  
-    oscMix[v].gain(2, noiseVolume * 0.4);   // Noise volume
-    oscMix[v].gain(3, sawVolume * 0.4);     // Sawtooth volume
-    
     // Configure DC source for filter envelope
     dcFilter[v].amplitude(filterEnvAmount);
     
@@ -613,8 +606,8 @@ void setup() {
     lpFilter[v].resonance(resonance);
     lpFilter[v].octaveControl(7.0); 
     
-    // Configure high-pass filter (12dB/oct)
-    hpFilter[v].setHighpass(0, hpfCutoff, 0.7); // Q=0.707 for smooth response
+    // Configure high-pass filter (12dB/oct) with minimal Q
+    hpFilter[v].setHighpass(0, hpfCutoff, 0.5); // Q=0.5 (lowest stable value)
     
     ampEnv[v].attack(ampAttack);
     ampEnv[v].sustain(ampSustain);
@@ -640,20 +633,20 @@ void setup() {
   // Initialize white noise generator
   noise1.amplitude(0.5);
   
-  // Configure voice mixers
-  voiceMix1.gain(0, 1.0);
+  // Configure voice mixers with makeup gain after HPF (compensate for reduced oscMix)
+  voiceMix1.gain(0, 1.0);  // Makeup gain after HPF
   voiceMix1.gain(1, 1.0);
   voiceMix1.gain(2, 1.0);
   voiceMix1.gain(3, 0.0);
   
-  voiceMix2.gain(0, 1.0);
+  voiceMix2.gain(0, 1.0);  // Makeup gain after HPF
   voiceMix2.gain(1, 1.0);
   voiceMix2.gain(2, 1.0);
   voiceMix2.gain(3, 0.0);
   
   // Configure pre-chorus mixer
-  preChorusMix.gain(0, 1.0);  // voiceMix1
-  preChorusMix.gain(1, 1.0);  // voiceMix2
+  preChorusMix.gain(0, 0.5);  // voiceMix1
+  preChorusMix.gain(1, 0.5);  // voiceMix2
   preChorusMix.gain(2, 0.0);
   preChorusMix.gain(3, 0.0);
   
@@ -694,8 +687,6 @@ void setup() {
   Serial.println(" Ready!");
 }
 
-
-// Read all 20 Mini-Teensy encoders (excluding menu encoder - handled in MenuNavigation.cpp)
 void readDirectEncoders() {
   encoderValues[0] = enc1.read() / 4;   // enc1
   encoderValues[1] = enc2.read() / 4;   // enc2
@@ -865,26 +856,6 @@ void updateSynthParameter(int paramIndex, float val) {
   }
 }
 
-
-int getMiniTeensyWaveform(float val, int osc) {
-  if (osc == 1 || osc == 2) {
-    if (val < 0.167) return WAVEFORM_TRIANGLE;
-    else if (val < 0.333) return WAVEFORM_BANDLIMIT_SAWTOOTH_REVERSE;
-    else if (val < 0.5) return WAVEFORM_BANDLIMIT_SAWTOOTH;
-    else if (val < 0.667) return WAVEFORM_BANDLIMIT_SQUARE;
-    else if (val < 0.833) return WAVEFORM_BANDLIMIT_PULSE;
-    else return WAVEFORM_BANDLIMIT_PULSE;
-  } else {
-    if (val < 0.167) return WAVEFORM_TRIANGLE;
-    else if (val < 0.333) return WAVEFORM_BANDLIMIT_SAWTOOTH;
-    else if (val < 0.5) return WAVEFORM_BANDLIMIT_SAWTOOTH;
-    else if (val < 0.667) return WAVEFORM_BANDLIMIT_SQUARE;
-    else if (val < 0.833) return WAVEFORM_BANDLIMIT_PULSE;
-    else return WAVEFORM_BANDLIMIT_PULSE;
-  }
-}
-
-
 void updateOscillatorMix() {
   // Update oscillator mixer levels for all voices
   for (int v = 0; v < VOICES; v++) {
@@ -909,7 +880,7 @@ void updateFilters() {
     lpFilter[v].resonance(resonance);
     lpFilter[v].octaveControl(7.0);
     
-    hpFilter[v].setHighpass(0, hpfCutoff, 0.707); // 12dB/oct high-pass with Q=0.707
+    hpFilter[v].setHighpass(0, hpfCutoff, 0.5); // Q=0.5 (lowest stable value)
     
     // Update filter envelope amount
     dcFilter[v].amplitude(filterEnvAmount);
@@ -918,16 +889,16 @@ void updateFilters() {
 
 void updateChorusMix() {
   if (chorusMode == 0) {
-    // Chorus off - dry signal only (mono)
-    finalMixL.gain(0, 1.0);  // Left dry signal
+    // Chorus off - dry signal only (mono) - moderate boost to compensate for preChorusMix 0.5
+    finalMixL.gain(0, 1.5);  // Left dry signal (+3.5dB makeup)
     finalMixL.gain(1, 0.0);  // No left chorus
-    finalMixR.gain(0, 1.0);  // Right dry signal  
+    finalMixR.gain(0, 1.5);  // Right dry signal (+3.5dB makeup)
     finalMixR.gain(1, 0.0);  // No right chorus
   } else {
-    finalMixL.gain(0, 0.5);  // Left: dry signal 
-    finalMixL.gain(1, 0.5);  // Left: wet chorus signal (total = 1.0)
-    finalMixR.gain(0, 0.5);  // Right: dry signal  
-    finalMixR.gain(1, 0.5);  // Right: wet chorus signal (180° phase difference)
+    finalMixL.gain(0, 0.75);  // Left: dry signal (+3.5dB makeup)
+    finalMixL.gain(1, 0.75);  // Left: wet chorus signal (+3.5dB makeup)
+    finalMixR.gain(0, 0.75);  // Right: dry signal (+3.5dB makeup) 
+    finalMixR.gain(1, 0.75);  // Right: wet chorus signal (+3.5dB makeup)
     
     // The 180° phase difference between L/R BBDs creates the wide stereo image
     // Unity gain prevents clipping while maintaining chorus effect

@@ -333,12 +333,12 @@ float mdaEPiano::getOverdrive(void)
 FLASHMEM void mdaEPiano::setVolume(float value)
 {
   //volume = value * 0.32258; // 0.00002 * 127^2
-  volume = value * 0.16f;
+  volume = value * 0.16f; // Back to original value
 }
 
 float mdaEPiano::getVolume(void)
 {
-  return(volume/0.16f);
+  return(volume/0.16f); // Back to original scaling
 }
 
 FLASHMEM void mdaEPiano::setParameter(int32_t index, float value)
