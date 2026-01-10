@@ -49,6 +49,8 @@ A collection of **5 standalone polyphonic synthesizers** built with the Teensy 4
 
 ## 🛠 Hardware Requirements
 
+**NOTE: ENABLE YOUR HARDWARE SETUP IN CONFIG.H** - You can build this with no additional components if you use USB audio and USB MIDI. Params are changed with MIDICC and you can change preset with Program Changes.
+
 **Full Build:**
 ### Required Components
 - **Teensy 4.1** microcontroller
