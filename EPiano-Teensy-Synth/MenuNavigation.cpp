@@ -6,9 +6,8 @@ extern LiquidCrystal_I2C lcd;
 #endif
 
 #ifdef USE_OLED_DISPLAY
-#include <Adafruit_SSD1306.h>
-#include <Adafruit_GFX.h>
-extern Adafruit_SSD1306 display;
+  #include <U8g2lib.h>
+  #include <Wire.h>
 #endif
 
 #include <Encoder.h>
@@ -17,6 +16,9 @@ extern Adafruit_SSD1306 display;
 extern Encoder menuEncoder;
 extern bool parameterChanged;
 
+#ifdef USE_OLED_DISPLAY
+  extern U8G2_SH1106_128X64_NONAME_F_HW_I2C display;
+#endif
 
 MenuState currentMenuState = PARENT_MENU;
 int menuIndex = 0;

@@ -26,12 +26,11 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 #endif
 
 #ifdef USE_OLED_DISPLAY
-#include <Adafruit_SSD1306.h>
-#include <Adafruit_GFX.h>
-#define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
-#define OLED_RESET -1
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+  #include <U8g2lib.h>
+  #define SCREEN_WIDTH 128
+  #define SCREEN_HEIGHT 64
+  #define OLED_RESET -1
+  U8G2_SH1106_128X64_NONAME_F_HW_I2C display(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 #endif
 
 
@@ -140,7 +139,7 @@ void setup() {
 #ifdef USE_OLED_DISPLAY
   Wire.begin();
   delay(50);
-  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+  display.begin();
   Serial.println("OLED initialized");
 #endif
 
