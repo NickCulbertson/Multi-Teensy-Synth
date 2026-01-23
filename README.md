@@ -319,3 +319,6 @@ This project directly incorporates Teensy implementations from community-driven 
 ## 📄 License
 
 This project is open source with multiple licenses depending on the synthesis engines used. Please see individual project folders and the acknowledgements above for specific license information. All original code contributions are licensed under GPL v3.0 unless otherwise specified.
+
+---
+*This project was developed with assistance from [Claude Code](https://code.claude.com/docs/en/overview).*
