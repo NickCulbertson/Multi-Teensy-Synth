@@ -416,14 +416,17 @@ void OnPitchBend(byte channel, int bend) {
 #ifdef USE_MIDI_HOST
 // USB Host MIDI callback handlers
 void OnUSBHostNoteOn(byte channel, byte note, byte velocity) {
+  if (midiChannel != 0 && channel != midiChannel) return;
   noteOn(note, velocity);
 }
 
 void OnUSBHostNoteOff(byte channel, byte note, byte velocity) {
+  if (midiChannel != 0 && channel != midiChannel) return;
   noteOff(note);
 }
 
 void OnUSBHostControlChange(byte channel, byte number, byte value) {
+  if (midiChannel != 0 && channel != midiChannel) return;
   if (number == 1) { // Mod wheel
     modWheelValue = value / 127.0;
     // Mod wheel controls LFO depth for pitch modulation (vibrato)
@@ -432,6 +435,7 @@ void OnUSBHostControlChange(byte channel, byte number, byte value) {
 }
 
 void OnUSBHostPitchBend(byte channel, int bend) {
+  if (midiChannel != 0 && channel != midiChannel) return;
   // USB Host MIDI uses signed range -8192 to +8191, center = 0
   pitchWheelValue = bend / 8192.0;
   updatePitch(); // Use centralized pitch update function
@@ -998,29 +1002,17 @@ void loop() {
   // Process USB Device MIDI messages (if enabled)
 #ifdef USE_USB_DEVICE_MIDI
   while (usbMIDI.read()) {
-    uint8_t type = usbMIDI.getType();
-    uint8_t channel = usbMIDI.getChannel();
-    uint8_t data1 = usbMIDI.getData1();
-    uint8_t data2 = usbMIDI.getData2();
-    
-    // Convert usbMIDI types to standard MIDI message types
-    if (type == usbMIDI.NoteOn) {
-      processMidiMessage(0x90, channel, data1, data2);
-    } else if (type == usbMIDI.NoteOff) {
-      processMidiMessage(0x80, channel, data1, data2);
-    } else if (type == usbMIDI.ControlChange) {
-      processMidiMessage(0xB0, channel, data1, data2);
-    } else if (type == usbMIDI.ProgramChange) {
-      processMidiMessage(0xC0, channel, data1, data2);
-    } else if (type == usbMIDI.PitchBend) {
-      processMidiMessage(0xE0, channel, data1, data2);
-    }
+    processMidiMessage(usbMIDI.getType(), usbMIDI.getChannel(), 
+                      usbMIDI.getData1(), usbMIDI.getData2());
   }
 #endif
 
 #ifdef USE_MIDI_HOST
   myusb.Task();
-  midi1.read();
+  while (midi1.read()) {
+    processMidiMessage(midi1.getType(), midi1.getChannel(), 
+                      midi1.getData1(), midi1.getData2());
+  }
 #endif
   
 #ifdef USE_DIN_MIDI
